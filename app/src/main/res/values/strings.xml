@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name" translatable="false">Dunda</string>
+    <string name="play_mucis">Play Music</string>
+    <string name="song_details">Song details</string>
+    <string name="playing">Playing: %1$s</string>
+    <string name="play">Play</string>
+</resources>

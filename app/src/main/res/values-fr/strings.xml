@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="play_mucis">Play Music</string>
+    <string name="song_details">Details de la chanson</string>
+    <string name="playing">Lecture: %1$s</string>
+    <string name="play">Jouer</string>
+</resources>
