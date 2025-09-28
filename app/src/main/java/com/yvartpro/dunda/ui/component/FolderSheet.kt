@@ -10,8 +10,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.yvartpro.dunda.R
 import com.yvartpro.dunda.logic.MusicViewModel
 
 @Composable
@@ -20,6 +22,18 @@ fun FolderSheet(
   navController: NavController,
 ) {
   val folders by viewModel.folders.collectAsState()
+  Text(
+    text = stringResource(R.string.all),
+    style = MaterialTheme.typography.bodyLarge,
+    modifier = Modifier
+      .fillMaxWidth()
+      .clickable {
+        viewModel.loadFolders()
+        navController.navigate("list")
+        viewModel.toggleShowFolderSheet()
+      }
+      .padding(vertical = 8.dp)
+  )
   folders.forEach { folder ->
     Text(
       text = folder.name,

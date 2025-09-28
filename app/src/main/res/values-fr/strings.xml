@@ -5,4 +5,5 @@
     <string name="playing">Lecture: %1$s</string>
     <string name="play">Jouer</string>
     <string name="sheet_title">Choisir un dossier</string>
+    <string name="all">Toutes les morceaux</string>
 </resources>
