@@ -2,32 +2,42 @@ package com.yvartpro.dunda.logic
 
 import android.app.Application
 import android.content.ContentUris
+import android.content.Context
 import android.media.MediaPlayer
 import android.net.Uri
 import android.provider.MediaStore
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.yvartpro.dunda.ui.component.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.File
 
 data class MusicTrack(
     val id: Long,
     val title: String,
     val artist: String?,
-    val uri: Uri
+    val uri: Uri,
+    val folderPath: String
 )
 
+data class Folder(
+    val name: String,
+    val path: String,
+    val tracks: List<MusicTrack>,
+)
 class MusicViewModel(app: Application) : AndroidViewModel(app) {
     private val _tracks = MutableStateFlow<List<MusicTrack>>(emptyList())
 
-    private val _loading = MutableStateFlow(false)
-    val loading = _loading.asStateFlow()
+    private val _folders = MutableStateFlow<List<Folder>>(emptyList())
+    val folders = _folders.asStateFlow()
 
     private val _currentTrack = MutableStateFlow<MusicTrack?>(null)
     val currentTrack: StateFlow<MusicTrack?> = _currentTrack
@@ -58,6 +68,9 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
     private val _showSheet = MutableStateFlow(false)
     val showSheet = _showSheet.asStateFlow()
 
+    private val _showFolderSheet = MutableStateFlow(false)
+    val showFolderSheet = _showFolderSheet.asStateFlow()
+
     private val _shownTrack = MutableStateFlow<MusicTrack?>(null)
     val showTrack = _shownTrack.asStateFlow()
 
@@ -69,6 +82,10 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
         _showSheet.value = !_showSheet.value
     }
 
+    fun toggleShowFolderSheet() {
+        _showFolderSheet.value = !_showFolderSheet.value
+    }
+
     init {
         loadTracks()
     }
@@ -77,14 +94,14 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
      * Load all .mp3 files from MediaStore
      */
     private fun loadTracks() {
-        _loading.value = true
         viewModelScope.launch(Dispatchers.IO) {
             val musicList = mutableListOf<MusicTrack>()
             val projection = arrayOf(
                 MediaStore.Audio.Media._ID,
                 MediaStore.Audio.Media.TITLE,
                 MediaStore.Audio.Media.ARTIST,
-                MediaStore.Audio.Media.MIME_TYPE
+                MediaStore.Audio.Media.MIME_TYPE,
+                MediaStore.Audio.Media.DATA
             )
             val selection = "${MediaStore.Audio.Media.MIME_TYPE}=?"
             val selectionArgs = arrayOf("audio/mpeg") // only mp3
@@ -102,23 +119,48 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                 val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                 val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
                 val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
 
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idCol)
                     val title = cursor.getString(titleCol)
                     val artist = cursor.getString(artistCol)
+                    val fullPath = cursor.getString(dataCol)
+                    val folderPath = File(fullPath).parent ?: ""
                     val uri = ContentUris.withAppendedId(
                         MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id
                     )
-                    musicList.add(MusicTrack(id, title, artist, uri))
+                    musicList.add(MusicTrack(id, title, artist, uri, folderPath))
                 }
             }
             _tracks.value = musicList
             _filtered.value = musicList
+
+            val songs = filtered.value
+            Logger.d("folders", "Folders = ${songs.size}")
         }
-        _loading.value = false
     }
 
+    fun loadFolders() {
+        viewModelScope.launch (Dispatchers.IO){
+            loadTracks()
+            loadTracks()
+            val musicList = _tracks.value
+            val grouped = musicList.groupBy { it.folderPath }
+            _folders.value = grouped.map { (path, tracks) ->
+                Folder(
+                    path = path,
+                    tracks = tracks,
+                    name = path.substringAfterLast("/")
+                )
+            }
+        }
+    }
+
+    fun selectFolder(folder: Folder) {
+        _tracks.value = folder.tracks
+        _filtered.value = _tracks.value
+    }
     fun playTrack(track: MusicTrack) {
         player?.release()
         player = MediaPlayer.create(getApplication(), track.uri).apply {

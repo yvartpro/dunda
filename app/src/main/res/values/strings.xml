@@ -4,4 +4,5 @@
     <string name="song_details">Song details</string>
     <string name="playing">Playing: %1$s</string>
     <string name="play">Play</string>
+    <string name="sheet_title">Choose folder</string>
 </resources>

@@ -25,7 +25,7 @@ fun AppNav(viewModel: MusicViewModel) {
             }
         }
         composable("player") {
-            PlayerScreen(viewModel) {
+            PlayerScreen(viewModel, navController) {
                 navController.popBackStack()
             }
         }
