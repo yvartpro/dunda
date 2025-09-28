@@ -14,7 +14,7 @@ import com.yvartpro.dunda.ui.screen.PlayerScreen
 fun AppNav(viewModel: MusicViewModel) {
     val navController: NavHostController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = "list") {
+    NavHost(navController = navController, startDestination = "player") {
         composable("list") {
             MusicListScreen(
                 navController = navController,

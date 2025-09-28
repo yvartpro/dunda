@@ -17,7 +17,7 @@ import com.yvartpro.dunda.nav.AppNav
 class MainActivity : ComponentActivity() {
 
     private val requestPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { _ ->
             // You can check granted permissions here
         }
 

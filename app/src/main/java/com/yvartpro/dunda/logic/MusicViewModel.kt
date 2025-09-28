@@ -2,20 +2,16 @@ package com.yvartpro.dunda.logic
 
 import android.app.Application
 import android.content.ContentUris
-import android.content.Context
 import android.media.MediaPlayer
 import android.net.Uri
 import android.provider.MediaStore
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.yvartpro.dunda.ui.component.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
@@ -135,9 +131,6 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
             }
             _tracks.value = musicList
             _filtered.value = musicList
-
-            val songs = filtered.value
-            Logger.d("folders", "Folders = ${songs.size}")
         }
     }
 
