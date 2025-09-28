@@ -151,7 +151,7 @@ fun MusicListScreen(
           modifier = Modifier
             .fillMaxWidth()
             .clickable {
-              if (currentTrack == track) navController.navigate("player") else onTrackSelected(
+              if (currentTrack == track) navController.popBackStack() else onTrackSelected(
                 track
               )
             },

@@ -29,7 +29,10 @@ fun FolderSheet(
       .fillMaxWidth()
       .clickable {
         viewModel.loadFolders()
-        navController.navigate("list")
+        navController.navigate("list") {
+          launchSingleTop = true
+          popUpTo("play") { inclusive = false}
+        }
         viewModel.toggleShowFolderSheet()
       }
       .padding(vertical = 8.dp)
@@ -42,7 +45,10 @@ fun FolderSheet(
         .fillMaxWidth()
         .clickable {
           viewModel.selectFolder(folder)
-          navController.navigate("list")
+          navController.navigate("list") {
+            launchSingleTop = true
+            popUpTo("play") { inclusive = false}
+          }
           viewModel.toggleShowFolderSheet()
         }
         .padding(vertical = 8.dp)
