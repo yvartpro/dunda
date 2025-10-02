@@ -60,7 +60,7 @@ fun MusicListScreen(
                 Icon(
                   Icons.AutoMirrored.Filled.ArrowBack,
                   contentDescription = "Back",
-                  tint = MaterialTheme.colorScheme.tertiary
+                  tint = MaterialTheme.colorScheme.onBackground
                 )
               }
             }
@@ -72,12 +72,12 @@ fun MusicListScreen(
                 onValueChange = { query = it; viewModel.filter(it) },
                 singleLine = true,
                 textStyle = TextStyle(
-                  color = MaterialTheme.colorScheme.tertiary,
+                  color = MaterialTheme.colorScheme.onBackground,
                   fontSize = 16.sp
                 )
               )
             } else {
-              Text(text = "Dunda - Play Music", color = MaterialTheme.colorScheme.tertiary)
+              Text(text = stringResource(R.string.app_title), color = MaterialTheme.colorScheme.onBackground)
             }
           },
           actions = {
@@ -88,7 +88,7 @@ fun MusicListScreen(
             }) {
               Icon(
                 painter = if (isSearch) painterResource(R.drawable.clear) else painterResource(R.drawable.search),
-                tint = MaterialTheme.colorScheme.tertiary,
+                tint = MaterialTheme.colorScheme.onBackground,
                 contentDescription = "Search",
                 modifier = Modifier.size(32.dp),
               )

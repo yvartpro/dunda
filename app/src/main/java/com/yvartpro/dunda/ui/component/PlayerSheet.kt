@@ -30,7 +30,6 @@ import com.yvartpro.dunda.logic.MusicViewModel
 fun PlayerSheet(
   viewModel: MusicViewModel,
 ) {
-
   val currTrack by viewModel.currentTrack.collectAsState()
   val shownTrack by viewModel.showTrack.collectAsState()
   val currentTrack by viewModel.currentTrack.collectAsState()

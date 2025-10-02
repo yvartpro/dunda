@@ -25,7 +25,7 @@ fun MusicProgressBar(viewModel: MusicViewModel) {
         val progressFraction = (progress / duration).coerceIn(0f, 1f)
 
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -51,16 +51,16 @@ fun MusicProgressBar(viewModel: MusicViewModel) {
                 LinearProgressIndicator(
                     progress = { progressFraction },
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.tertiary,
-                    trackColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)
+                    color = MaterialTheme.colorScheme.secondary,
+                    trackColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)
                 )
             }
 
             Spacer(Modifier.height(4.dp))
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(formatTime(progress.toInt()), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
-                Text(formatTime(duration.toInt()), style = MaterialTheme.typography.labelSmall,  color = MaterialTheme.colorScheme.tertiary)
+                Text(formatTime(progress.toInt()), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+                Text(formatTime(duration.toInt()), style = MaterialTheme.typography.labelSmall,  color = MaterialTheme.colorScheme.secondary)
             }
         }
     }

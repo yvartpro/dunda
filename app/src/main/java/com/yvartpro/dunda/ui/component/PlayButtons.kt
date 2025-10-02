@@ -45,7 +45,7 @@ fun PlayButtons(viewModel: MusicViewModel) {
     }) {
       Icon(
         painter = painterResource(R.drawable.shuffle),
-        tint = if (isShuffling) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+        tint = if (isShuffling) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
         contentDescription = "Shuffle",
         modifier = Modifier.size(24.dp)
       )
@@ -54,7 +54,7 @@ fun PlayButtons(viewModel: MusicViewModel) {
       IconButton(onClick = { viewModel.playPrev() }) {
         Icon(
           painter = painterResource(R.drawable.previous),
-          tint = MaterialTheme.colorScheme.tertiary,
+          tint = MaterialTheme.colorScheme.secondary,
           contentDescription = "Previous",
           modifier = Modifier.size(24.dp)
         )
@@ -62,7 +62,7 @@ fun PlayButtons(viewModel: MusicViewModel) {
       IconButton(onClick = { viewModel.togglePlayPause() }) {
         Icon(
           painter = if (isPlaying) painterResource(R.drawable.play_pause) else painterResource(R.drawable.play),
-          tint = MaterialTheme.colorScheme.tertiary,
+          tint = MaterialTheme.colorScheme.secondary,
           contentDescription = "Play/Pause",
           modifier = Modifier.size(24.dp)
         )
@@ -70,7 +70,7 @@ fun PlayButtons(viewModel: MusicViewModel) {
       IconButton(onClick = { viewModel.playNext() }) {
         Icon(
           painter = painterResource(R.drawable.next),
-          tint = MaterialTheme.colorScheme.tertiary,
+          tint = MaterialTheme.colorScheme.secondary,
           contentDescription = "Next",
           modifier = Modifier.size(24.dp)
         )
@@ -79,7 +79,7 @@ fun PlayButtons(viewModel: MusicViewModel) {
     IconButton(onClick = { viewModel.toggleLoop() }) {
       Icon(
         painter = if (isLooping) painterResource(R.drawable.repeat_one) else painterResource(R.drawable.repeat),
-        tint = if (isLooping) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+        tint = if (isLooping) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
         contentDescription = "Loop",
         modifier = Modifier.size(24.dp)
       )

@@ -35,7 +35,7 @@ fun FolderSheet(
         }
         viewModel.toggleShowFolderSheet()
       }
-      .padding(vertical = 8.dp)
+      .padding(vertical = 8.dp, horizontal = 16.dp)
   )
   folders.forEach { folder ->
     Text(
@@ -51,8 +51,7 @@ fun FolderSheet(
           }
           viewModel.toggleShowFolderSheet()
         }
-        .padding(vertical = 8.dp)
+        .padding(vertical = 8.dp, horizontal = 16.dp)
     )
-    HorizontalDivider()
   }
 }

@@ -31,7 +31,6 @@ import com.yvartpro.dunda.ui.component.PlayButtons
 fun PlayerScreen(
   viewModel: MusicViewModel,
   navController: NavController,
-  onBack: () -> Unit
 ) {
   val currentTrack by viewModel.currentTrack.collectAsState()
   val showFolderSheet by viewModel.showFolderSheet.collectAsState()
@@ -44,23 +43,14 @@ fun PlayerScreen(
         tonalElevation = 8.dp,
         modifier = Modifier
           .fillMaxWidth()
-          .background(MaterialTheme.colorScheme.primary),
+          .background(MaterialTheme.colorScheme.background),
       ){
         TopAppBar(
           title = {
             Text(
-              text = "Dunda - Player",
-              color = MaterialTheme.colorScheme.tertiary,
+              text = stringResource(R.string.app_title),
+              color = MaterialTheme.colorScheme.onBackground,
             )
-          },
-          navigationIcon = {
-            IconButton(onClick = onBack) {
-              Icon(
-                Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint = MaterialTheme.colorScheme.tertiary
-              )
-            }
           },
           actions = {
             IconButton(onClick = {
@@ -70,7 +60,7 @@ fun PlayerScreen(
               Icon(
                 painter = painterResource(R.drawable.folder),
                 contentDescription = "Folder",
-                tint = MaterialTheme.colorScheme.tertiary
+                tint = MaterialTheme.colorScheme.onBackground
               )
             }
           }
@@ -79,11 +69,11 @@ fun PlayerScreen(
     },
     bottomBar = {
       Surface(
-        color = Color.Transparent,
+        color = MaterialTheme.colorScheme.background,
         tonalElevation = 8.dp,
         modifier = Modifier
           .fillMaxWidth()
-          .background(Color.Transparent)
+          .background(MaterialTheme.colorScheme.background)
           .padding(top = 16.dp)
           .navigationBarsPadding()
       ) {
@@ -106,6 +96,7 @@ fun PlayerScreen(
       modifier = Modifier
         .fillMaxSize()
         .padding(padding)
+        .background(MaterialTheme.colorScheme.background)
         .padding(24.dp),
       verticalArrangement = Arrangement.Center,
       horizontalAlignment = Alignment.CenterHorizontally
@@ -130,7 +121,8 @@ fun PlayerScreen(
           text = stringResource(R.string.playing,it),
           maxLines = 1,
           overflow = TextOverflow.Ellipsis,
-          textAlign = TextAlign.Start
+          textAlign = TextAlign.Start,
+          color = MaterialTheme.colorScheme.onBackground
         )
       }
       Spacer(modifier = Modifier.height(30.dp))

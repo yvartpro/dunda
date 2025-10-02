@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /**
  * Generic Modal Bottom Sheet
@@ -37,8 +38,8 @@ fun DraggableSheet(
           .fillMaxWidth()
           .padding(16.dp)
       ) {
-        Text(text = title, style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(12.dp))
+        Text(text = title, style = MaterialTheme.typography.headlineSmall, fontSize = 20.sp)
+        Spacer(Modifier.height(2.dp))
       }
     content()
     }
