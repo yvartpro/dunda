@@ -43,7 +43,7 @@ fun buildNowPlayingNotification(
 
     val playPauseAction = if (isPlaying) {
         NotificationCompat.Action(
-            R.drawable.play_pause, // Replace with your pause icon
+            R.drawable.pause, // Replace with your pause icon
             "Pause",
             PendingIntent.getService(
                 context, 0, Intent(context, MusicService::class.java).setAction(MusicService.ACTION_PAUSE),
