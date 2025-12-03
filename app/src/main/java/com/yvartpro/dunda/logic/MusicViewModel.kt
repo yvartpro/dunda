@@ -141,12 +141,15 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
             val mediaList = mutableListOf<MusicTrack>()
             val minDurationMs = 120000 // 2 minutes
 
-            // More precise blocklist for folders that are almost always junk
+            // Unified and more precise blocklist for junk folders
             val excludedPathSegments = listOf(
                 "/WhatsApp Voice Notes/", 
                 "/WhatsApp Business Voice Notes/", 
                 "/Call Recordings/", 
-                "/SoundRecorder/"
+                "/SoundRecorder/",
+                "/Recordings/",
+                "/Recordings/Music/",
+                "/Camera/"
             )
             val excludedTitlePrefixes = listOf("PTT-", "MSG-")
 
@@ -158,7 +161,6 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                 MediaStore.Audio.Media.DATA,
                 MediaStore.Audio.Media.DURATION
             )
-            // Filter by duration and music flag
             val audioSelection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= ?"
             val audioSelectionArgs = arrayOf(minDurationMs.toString())
             val audioQueryUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
@@ -175,7 +177,6 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                     val fullPath = cursor.getString(dataCol)
                     val title = cursor.getString(titleCol)
 
-                    // Check against the more precise blocklists
                     val isJunkPath = excludedPathSegments.any { fullPath.contains(it, ignoreCase = true) }
                     val isJunkTitle = excludedTitlePrefixes.any { title.startsWith(it, ignoreCase = true) }
 
@@ -208,9 +209,8 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
 
                 while (cursor.moveToNext()) {
                     val fullPath = cursor.getString(dataCol)
-                    // Exclude specific junk video folders
-                    val isJunkPath = fullPath.contains("/WhatsApp Video/", ignoreCase = true) || 
-                                     fullPath.contains("/WhatsApp Business Video/", ignoreCase = true)
+                    // Use the unified blocklist for videos as well
+                    val isJunkPath = excludedPathSegments.any { fullPath.contains(it, ignoreCase = true) }
 
                     if (!isJunkPath) {
                         val id = cursor.getLong(idCol)
