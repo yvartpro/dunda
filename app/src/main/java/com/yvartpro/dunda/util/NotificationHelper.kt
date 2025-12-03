@@ -17,7 +17,7 @@ fun showNowPlayingNotification(context: Context, track: MusicTrack) {
 
   val name = "Now Playing"
   val descriptionText = "Notifications for the currently playing song"
-  val importance = NotificationManager.IMPORTANCE_LOW
+  val importance = NotificationManager.IMPORTANCE_DEFAULT
   val channel = NotificationChannel(channelId, name, importance).apply {
       description = descriptionText
   }
@@ -26,11 +26,11 @@ fun showNowPlayingNotification(context: Context, track: MusicTrack) {
   notificationManager.createNotificationChannel(channel)
 
   val builder = NotificationCompat.Builder(context, channelId)
-        .setSmallIcon(R.mipmap.ic_launcher)
+        .setSmallIcon(R.mipmap.ic_launcher) // Replace with a proper music icon if you have one
         .setContentTitle("Now Playing")
         .setContentText(track.title)
-        .setPriority(NotificationCompat.PRIORITY_LOW)
-        .setOnlyAlertOnce(true)
+        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        .setOnlyAlertOnce(true) // Don't make a sound for subsequent notifications
         .setAutoCancel(true)
 
     with(NotificationManagerCompat.from(context)) {
@@ -39,7 +39,7 @@ fun showNowPlayingNotification(context: Context, track: MusicTrack) {
                 Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
         ) {
-            notify(1, builder.build())
+            notify(1, builder.build()) // Use a consistent ID
         }
     }
 }
