@@ -92,12 +92,28 @@ class MusicService : Service(), AudioManager.OnAudioFocusChangeListener {
 
         if (!requestAudioFocus()) return
 
+        prepareTrack(track, playWhenReady = true)
+    }
+
+    fun queueRandomTrack() {
+        if (tracks.isEmpty()) return
+        if (!_isShuffling.value) {
+            _isShuffling.value = true
+        }
+        val randomIndex = tracks.indices.random()
+        currentTrackIndex = randomIndex
+        prepareTrack(tracks[randomIndex], playWhenReady = false)
+    }
+
+    private fun prepareTrack(track: MusicTrack, playWhenReady: Boolean) {
         _currentTrack.value = track
         player?.release()
         player = MediaPlayer.create(this, track.uri).apply {
             setOnPreparedListener { 
                 _duration.value = it.duration
-                resume()
+                if (playWhenReady) {
+                    resume()
+                }
             }
             setOnCompletionListener { 
                 playNext()

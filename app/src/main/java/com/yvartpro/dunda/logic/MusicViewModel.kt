@@ -78,6 +78,8 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
             musicService = binder.getService()
             isBound = true
             observeServiceState()
+            // Now that the service is connected, load the tracks.
+            loadTracks()
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
@@ -97,7 +99,7 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     init {
-        loadTracks()
+        // Just bind to the service. Track loading will start when the service is connected.
         Intent(app, MusicService::class.java).also { intent ->
             app.startService(intent) // Start the service to keep it running
             app.bindService(intent, connection, Context.BIND_AUTO_CREATE)
@@ -133,6 +135,9 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
 
     // --- Media Library Methods ---
     private fun loadTracks() {
+        // Prevent re-loading if tracks are already loaded
+        if (_tracks.value.isNotEmpty()) return
+
         viewModelScope.launch(Dispatchers.IO) {
             val musicList = mutableListOf<MusicTrack>()
             val projection = arrayOf(
@@ -163,7 +168,10 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
             }
             _tracks.value = musicList
             _filtered.value = musicList
+            
+            // Since this is only called after the service is bound, musicService is guaranteed to be non-null
             musicService?.setTrackList(musicList)
+            musicService?.queueRandomTrack()
         }
     }
 
