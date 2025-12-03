@@ -2,8 +2,13 @@ package com.yvartpro.dunda.logic
 
 import android.app.Application
 import android.content.ContentUris
+import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -39,7 +44,7 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
     private val _currentTrack = MutableStateFlow<MusicTrack?>(null)
     val currentTrack: StateFlow<MusicTrack?> = _currentTrack
 
-    private val _isPlaying = MutableStateFlow(true)
+    private val _isPlaying = MutableStateFlow(false)
     val isPlaying = _isPlaying.asStateFlow()
 
     private val _isSearch = MutableStateFlow(false)
@@ -71,6 +76,45 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
     private val _shownTrack = MutableStateFlow<MusicTrack?>(null)
     val showTrack = _shownTrack.asStateFlow()
 
+    private val audioManager: AudioManager
+    private var audioFocusRequest: AudioFocusRequest? = null
+    private var wasPlayingBeforeTransientLoss = false
+    private var isDucked = false
+
+    private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                if (_isPlaying.value) {
+                    togglePlayPause() // Pauses and abandons focus
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                if (_isPlaying.value) {
+                    wasPlayingBeforeTransientLoss = true
+                    player?.pause()
+                    _isPlaying.value = false
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                if (_isPlaying.value) {
+                    player?.setVolume(0.001f, 0.001f)
+                    isDucked = true
+                }
+            }
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                if (isDucked) {
+                    player?.setVolume(1.0f, 1.0f)
+                    isDucked = false
+                }
+                if (wasPlayingBeforeTransientLoss) {
+                    player?.start()
+                    _isPlaying.value = true
+                    wasPlayingBeforeTransientLoss = false
+                }
+            }
+        }
+    }
+
     fun toggleShownTrack(track: MusicTrack) {
         _shownTrack.value = track
     }
@@ -85,6 +129,46 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         loadTracks()
+        audioManager = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        player?.release()
+        abandonAudioFocus()
+    }
+
+    private fun requestAudioFocus(): Boolean {
+        val result: Int
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build()
+            audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(audioAttributes)
+                .setAcceptsDelayedFocusGain(true)
+                .setOnAudioFocusChangeListener(audioFocusChangeListener)
+                .build()
+            result = audioManager.requestAudioFocus(audioFocusRequest!!)
+        } else {
+            @Suppress("DEPRECATION")
+            result = audioManager.requestAudioFocus(
+                audioFocusChangeListener,
+                AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN
+            )
+        }
+        return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    }
+
+    private fun abandonAudioFocus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(audioFocusChangeListener)
+        }
     }
 
     /**
@@ -156,6 +240,10 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
         _filtered.value = _tracks.value
     }
     fun playTrack(track: MusicTrack) {
+        if (!requestAudioFocus()) {
+            return
+        }
+
         if (_currentTrack.value?.id != track.id) { // Only show notification if the track is new
             showNowPlayingNotification(getApplication(), track)
         }
@@ -208,9 +296,12 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
             if (it.isPlaying) {
                 it.pause()
                 _isPlaying.value = false
+                abandonAudioFocus()
             } else {
-                it.start()
-                _isPlaying.value = true
+                if (requestAudioFocus()) {
+                    it.start()
+                    _isPlaying.value = true
+                }
             }
         }
     }
