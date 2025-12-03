@@ -66,6 +66,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
     implementation("androidx.navigation:navigation-compose:2.8.2")
     implementation("androidx.compose.material3:material3:1.3.0")
+    implementation("androidx.media:media:1.7.1")
     
     //firebase
     implementation(platform("com.google.firebase:firebase-bom:31.3.0"))

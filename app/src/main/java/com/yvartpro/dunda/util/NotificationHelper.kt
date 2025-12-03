@@ -1,45 +1,75 @@
 package com.yvartpro.dunda.util
 
-import android.Manifest
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.core.app.ActivityCompat
+import android.content.Intent
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
+import com.yvartpro.dunda.MainActivity
 import com.yvartpro.dunda.R
 import com.yvartpro.dunda.logic.MusicTrack
+import com.yvartpro.dunda.service.MusicService
 
-fun showNowPlayingNotification(context: Context, track: MusicTrack) {
-    val channelId = "now_playing_channel"
+const val NOW_PLAYING_CHANNEL_ID = "now_playing_channel"
+const val NOW_PLAYING_NOTIFICATION_ID = 1
 
+fun createNowPlayingChannel(context: Context) {
   val name = "Now Playing"
   val descriptionText = "Notifications for the currently playing song"
-  val importance = NotificationManager.IMPORTANCE_LOW
-  val channel = NotificationChannel(channelId, name, importance).apply {
+  val importance = NotificationManager.IMPORTANCE_LOW // Low importance to not make sound
+  val channel = NotificationChannel(NOW_PLAYING_CHANNEL_ID, name, importance).apply {
       description = descriptionText
   }
   val notificationManager: NotificationManager =
       context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
   notificationManager.createNotificationChannel(channel)
+}
 
-  val builder = NotificationCompat.Builder(context, channelId)
+fun buildNowPlayingNotification(
+    context: Context,
+    track: MusicTrack,
+    isPlaying: Boolean
+): Notification {
+    val intent = Intent(context, MainActivity::class.java).apply {
+        action = Intent.ACTION_MAIN
+        addCategory(Intent.CATEGORY_LAUNCHER)
+    }
+    val pendingIntent: PendingIntent = PendingIntent.getActivity(
+        context, 0, intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+
+    val playPauseAction = if (isPlaying) {
+        NotificationCompat.Action(
+            R.drawable.play_pause, // Replace with your pause icon
+            "Pause",
+            PendingIntent.getService(
+                context, 0, Intent(context, MusicService::class.java).setAction(MusicService.ACTION_PAUSE),
+                PendingIntent.FLAG_IMMUTABLE
+            )
+        )
+    } else {
+        NotificationCompat.Action(
+            R.drawable.play, // Replace with your play icon
+            "Play",
+            PendingIntent.getService(
+                context, 0, Intent(context, MusicService::class.java).setAction(MusicService.ACTION_PLAY),
+                PendingIntent.FLAG_IMMUTABLE
+            )
+        )
+    }
+
+    return NotificationCompat.Builder(context, NOW_PLAYING_CHANNEL_ID)
         .setSmallIcon(R.mipmap.ic_launcher)
         .setContentTitle("Now Playing")
-        .setContentText(track.title)
-        .setPriority(NotificationCompat.PRIORITY_LOW)
-        .setOnlyAlertOnce(true)
-        .setAutoCancel(true)
-
-    with(NotificationManagerCompat.from(context)) {
-        if (ActivityCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            notify(1, builder.build())
-        }
-    }
+        .setContentText("${track.title} - ${track.artist ?: "Unknown"}")
+        .setContentIntent(pendingIntent)
+        .setOngoing(isPlaying)
+        .addAction(playPauseAction)
+        .setStyle(androidx.media.app.NotificationCompat.MediaStyle()
+            .setShowActionsInCompactView(0)
+        )
+        .build()
 }
