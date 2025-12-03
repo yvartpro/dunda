@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "10155109928",
+    "project_id": "dunda-a5fcd",
+    "storage_bucket": "dunda-a5fcd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:10155109928:android:284be341ebd648667fcf1d",
+        "android_client_info": {
+          "package_name": "com.yvartpro.dunda"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBmgF4aH3LbCmym8O3cphx47_jcASXn4fg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

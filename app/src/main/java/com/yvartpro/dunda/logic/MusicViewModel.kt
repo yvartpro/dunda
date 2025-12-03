@@ -7,6 +7,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.yvartpro.dunda.util.showNowPlayingNotification
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -155,6 +156,10 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
         _filtered.value = _tracks.value
     }
     fun playTrack(track: MusicTrack) {
+        if (_currentTrack.value?.id != track.id) { // Only show notification if the track is new
+            showNowPlayingNotification(getApplication(), track)
+        }
+
         player?.release()
         player = MediaPlayer.create(getApplication(), track.uri).apply {
             isLooping = false

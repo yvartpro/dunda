@@ -18,7 +18,6 @@ class MainActivity : ComponentActivity() {
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { _ ->
-            // You can check granted permissions here
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,6 +41,11 @@ class MainActivity : ComponentActivity() {
                 != PackageManager.PERMISSION_GRANTED
             ) {
                 permissionsToRequest.add(Manifest.permission.READ_MEDIA_AUDIO)
+            }
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
             }
         } else {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)

@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.gms) //firebase
 }
 
 android {
@@ -65,4 +66,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
     implementation("androidx.navigation:navigation-compose:2.8.2")
     implementation("androidx.compose.material3:material3:1.3.0")
+    
+    //firebase
+    implementation(platform("com.google.firebase:firebase-bom:31.3.0"))
+    implementation("com.google.firebase:firebase-messaging")
 }
