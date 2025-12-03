@@ -67,7 +67,11 @@ fun MusicProgressBar(viewModel: MusicViewModel) {
 }
 
 private fun formatTime(seconds: Int): String {
-    val min = seconds / 60
-    val sec = seconds % 60
-    return "%d:%02d".format(min, sec)
+  val h = seconds / 3600
+  val min = (seconds % 3600) / 60
+  val sec = seconds % 60
+  return if (h > 0)
+    "%d:%02d:%02d".format(h,min, sec)
+  else
+    "%d:%02d".format(min, sec)
 }
