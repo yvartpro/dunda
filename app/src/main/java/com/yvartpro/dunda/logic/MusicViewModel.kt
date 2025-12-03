@@ -21,97 +21,97 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 data class MusicTrack(
-    val id: Long,
-    val title: String,
-    val artist: String?,
-    val uri: Uri,
-    val folderPath: String
+  val id: Long,
+  val title: String,
+  val artist: String?,
+  val uri: Uri,
+  val folderPath: String
 )
 
 data class Folder(
-    val name: String,
-    val path: String,
-    val tracks: List<MusicTrack>,
+  val name: String,
+  val path: String,
+  val tracks: List<MusicTrack>,
 )
 
 class MusicViewModel(app: Application) : AndroidViewModel(app) {
-    // Media library state
-    private val _tracks = MutableStateFlow<List<MusicTrack>>(emptyList())
-    val tracks = _tracks.asStateFlow()
-    private val _folders = MutableStateFlow<List<Folder>>(emptyList())
-    val folders = _folders.asStateFlow()
-    private val _filtered = MutableStateFlow<List<MusicTrack>>(emptyList())
-    val filtered = _filtered.asStateFlow()
+  // Media library state
+  private val _tracks = MutableStateFlow<List<MusicTrack>>(emptyList())
+  val tracks = _tracks.asStateFlow()
+  private val _folders = MutableStateFlow<List<Folder>>(emptyList())
+  val folders = _folders.asStateFlow()
+  private val _filtered = MutableStateFlow<List<MusicTrack>>(emptyList())
+  val filtered = _filtered.asStateFlow()
 
-    // Service connection
-    private var musicService: MusicService? = null
-    private var isBound = false
+  // Service connection
+  private var musicService: MusicService? = null
+  private var isBound = false
 
-    // Playback state - Now observed from the service
-    private val _currentTrack = MutableStateFlow<MusicTrack?>(null)
-    val currentTrack = _currentTrack.asStateFlow()
-    private val _isPlaying = MutableStateFlow(false)
-    val isPlaying = _isPlaying.asStateFlow()
-    private val _progress = MutableStateFlow(0f)
-    val progress = _progress.asStateFlow()
-    private val _duration = MutableStateFlow(0f)
-    val duration = _duration.asStateFlow()
-    private val _isLooping = MutableStateFlow(false)
-    val isLooping = _isLooping.asStateFlow()
-    private val _isShuffling = MutableStateFlow(false)
-    val isShuffling = _isShuffling.asStateFlow()
+  // Playback state - Now observed from the service
+  private val _currentTrack = MutableStateFlow<MusicTrack?>(null)
+  val currentTrack = _currentTrack.asStateFlow()
+  private val _isPlaying = MutableStateFlow(false)
+  val isPlaying = _isPlaying.asStateFlow()
+  private val _progress = MutableStateFlow(0f)
+  val progress = _progress.asStateFlow()
+  private val _duration = MutableStateFlow(0f)
+  val duration = _duration.asStateFlow()
+  private val _isLooping = MutableStateFlow(false)
+  val isLooping = _isLooping.asStateFlow()
+  private val _isShuffling = MutableStateFlow(false)
+  val isShuffling = _isShuffling.asStateFlow()
 
-    // UI-specific state
-    private val _isSearch = MutableStateFlow(false)
-    val isSearch = _isSearch.asStateFlow()
-    private val _showSheet = MutableStateFlow(false)
-    val showSheet = _showSheet.asStateFlow()
-    private val _showFolderSheet = MutableStateFlow(false)
-    val showFolderSheet = _showFolderSheet.asStateFlow()
-    private val _shownTrack = MutableStateFlow<MusicTrack?>(null)
-    val showTrack = _shownTrack.asStateFlow()
+  // UI-specific state
+  private val _isSearch = MutableStateFlow(false)
+  val isSearch = _isSearch.asStateFlow()
+  private val _showSheet = MutableStateFlow(false)
+  val showSheet = _showSheet.asStateFlow()
+  private val _showFolderSheet = MutableStateFlow(false)
+  val showFolderSheet = _showFolderSheet.asStateFlow()
+  private val _shownTrack = MutableStateFlow<MusicTrack?>(null)
+  val showTrack = _shownTrack.asStateFlow()
 
 
     private val connection = object : ServiceConnection {
-        override fun onServiceConnected(className: ComponentName, service: IBinder) {
-            val binder = service as MusicService.MusicBinder
-            musicService = binder.getService()
-            isBound = true
-            observeServiceState()
-            // Now that the service is connected, load the tracks.
-            loadTracks()
-        }
+      override fun onServiceConnected(className: ComponentName, service: IBinder) {
+        val binder = service as MusicService.MusicBinder
+        musicService = binder.getService()
+        isBound = true
+        observeServiceState()
+        // Now that the service is connected, load the tracks.
+        loadTracks()
+      }
 
-        override fun onServiceDisconnected(arg0: ComponentName) {
-            isBound = false
-        }
+      override fun onServiceDisconnected(arg0: ComponentName) {
+        isBound = false
+      }
     }
 
     private fun observeServiceState() {
-        musicService?.let {
-            it.currentTrack.onEach { track -> _currentTrack.value = track }.launchIn(viewModelScope)
-            it.isPlaying.onEach { playing -> _isPlaying.value = playing }.launchIn(viewModelScope)
-            it.progress.onEach { prog -> _progress.value = prog / 1000f }.launchIn(viewModelScope)
-            it.duration.onEach { dur -> _duration.value = dur / 1000f }.launchIn(viewModelScope)
-            it.isShuffling.onEach { shuffling -> _isShuffling.value = shuffling }.launchIn(viewModelScope)
-            it.isLooping.onEach { looping -> _isLooping.value = looping }.launchIn(viewModelScope)
-        }
+      musicService?.let {
+        it.currentTrack.onEach { track -> _currentTrack.value = track }.launchIn(viewModelScope)
+        it.isPlaying.onEach { playing -> _isPlaying.value = playing }.launchIn(viewModelScope)
+        it.progress.onEach { prog -> _progress.value = prog / 1000f }.launchIn(viewModelScope)
+        it.duration.onEach { dur -> _duration.value = dur / 1000f }.launchIn(viewModelScope)
+        it.isShuffling.onEach { shuffling -> _isShuffling.value = shuffling }.launchIn(viewModelScope)
+        it.isLooping.onEach { looping -> _isLooping.value = looping }.launchIn(viewModelScope)
+      }
     }
 
     init {
-        // Just bind to the service. Track loading will start when the service is connected.
-        Intent(app, MusicService::class.java).also { intent ->
-            app.startService(intent) // Start the service to keep it running
-            app.bindService(intent, connection, Context.BIND_AUTO_CREATE)
-        }
+      // Just bind to the service. Track loading will start when the service is connected.
+      Intent(app, MusicService::class.java).also { intent ->
+        app.startService(intent) // Start the service to keep it running
+        app.bindService(intent, connection, Context.BIND_AUTO_CREATE)
+      }
     }
 
     override fun onCleared() {
-        if (isBound) {
-            getApplication<Application>().unbindService(connection)
-            isBound = false
-        }
-        super.onCleared()
+      if (isBound) {
+        getApplication<Application>().unbindService(connection)
+        isBound = false
+      }
+      super.onCleared()
     }
 
     // --- UI State Control Methods ---
@@ -122,8 +122,8 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
 
     // --- Playback Control Methods (delegating to service) ---
     fun playTrack(track: MusicTrack) {
-        musicService?.setTrackList(filtered.value)
-        musicService?.playTrack(track)
+      musicService?.setTrackList(filtered.value)
+      musicService?.playTrack(track)
     }
 
     fun togglePlayPause() { musicService?.togglePlayPause() }
@@ -141,8 +141,8 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             val musicList = mutableListOf<MusicTrack>()
             val projection = arrayOf(
-                MediaStore.Audio.Media._ID, MediaStore.Audio.Media.TITLE,
-                MediaStore.Audio.Media.ARTIST, MediaStore.Audio.Media.MIME_TYPE, MediaStore.Audio.Media.DATA
+              MediaStore.Audio.Media._ID, MediaStore.Audio.Media.TITLE,
+              MediaStore.Audio.Media.ARTIST, MediaStore.Audio.Media.MIME_TYPE, MediaStore.Audio.Media.DATA
             )
             val selection = "${MediaStore.Audio.Media.MIME_TYPE}=?"
             val selectionArgs = arrayOf("audio/mpeg")

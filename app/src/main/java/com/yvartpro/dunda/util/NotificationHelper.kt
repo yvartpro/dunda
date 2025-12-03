@@ -18,12 +18,12 @@ const val NOW_PLAYING_NOTIFICATION_ID = 1
 fun createNowPlayingChannel(context: Context) {
   val name = "Now Playing"
   val descriptionText = "Notifications for the currently playing song"
-  val importance = NotificationManager.IMPORTANCE_LOW // Low importance to not make sound
+  val importance = NotificationManager.IMPORTANCE_LOW
   val channel = NotificationChannel(NOW_PLAYING_CHANNEL_ID, name, importance).apply {
-      description = descriptionText
+    description = descriptionText
   }
   val notificationManager: NotificationManager =
-      context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
   notificationManager.createNotificationChannel(channel)
 }
 
@@ -32,44 +32,44 @@ fun buildNowPlayingNotification(
     track: MusicTrack,
     isPlaying: Boolean
 ): Notification {
-    val intent = Intent(context, MainActivity::class.java).apply {
-        action = Intent.ACTION_MAIN
-        addCategory(Intent.CATEGORY_LAUNCHER)
-    }
-    val pendingIntent: PendingIntent = PendingIntent.getActivity(
-        context, 0, intent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+  val intent = Intent(context, MainActivity::class.java).apply {
+    action = Intent.ACTION_MAIN
+    addCategory(Intent.CATEGORY_LAUNCHER)
+  }
+  val pendingIntent: PendingIntent = PendingIntent.getActivity(
+    context, 0, intent,
+    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+  )
+
+  val playPauseAction = if (isPlaying) {
+    NotificationCompat.Action(
+      R.drawable.pause,
+      "Pause",
+      PendingIntent.getService(
+        context, 0, Intent(context, MusicService::class.java).setAction(MusicService.ACTION_PAUSE),
+        PendingIntent.FLAG_IMMUTABLE
+      )
     )
+  } else {
+    NotificationCompat.Action(
+      R.drawable.play,
+      "Play",
+      PendingIntent.getService(
+        context, 0, Intent(context, MusicService::class.java).setAction(MusicService.ACTION_PLAY),
+        PendingIntent.FLAG_IMMUTABLE
+      )
+    )
+  }
 
-    val playPauseAction = if (isPlaying) {
-        NotificationCompat.Action(
-            R.drawable.pause, // Replace with your pause icon
-            "Pause",
-            PendingIntent.getService(
-                context, 0, Intent(context, MusicService::class.java).setAction(MusicService.ACTION_PAUSE),
-                PendingIntent.FLAG_IMMUTABLE
-            )
-        )
-    } else {
-        NotificationCompat.Action(
-            R.drawable.play, // Replace with your play icon
-            "Play",
-            PendingIntent.getService(
-                context, 0, Intent(context, MusicService::class.java).setAction(MusicService.ACTION_PLAY),
-                PendingIntent.FLAG_IMMUTABLE
-            )
-        )
-    }
-
-    return NotificationCompat.Builder(context, NOW_PLAYING_CHANNEL_ID)
-        .setSmallIcon(R.mipmap.ic_launcher)
-        .setContentTitle("Now Playing")
-        .setContentText("${track.title} - ${track.artist ?: "Unknown"}")
-        .setContentIntent(pendingIntent)
-        .setOngoing(isPlaying)
-        .addAction(playPauseAction)
-        .setStyle(androidx.media.app.NotificationCompat.MediaStyle()
-            .setShowActionsInCompactView(0)
-        )
-        .build()
+  return NotificationCompat.Builder(context, NOW_PLAYING_CHANNEL_ID)
+    .setSmallIcon(R.mipmap.ic_launcher)
+    .setContentTitle("Now Playing")
+    .setContentText("${track.title} - ${track.artist ?: "Unknown"}")
+    .setContentIntent(pendingIntent)
+    .setOngoing(isPlaying)
+    .addAction(playPauseAction)
+    .setStyle(androidx.media.app.NotificationCompat.MediaStyle()
+      .setShowActionsInCompactView(0)
+    )
+    .build()
 }

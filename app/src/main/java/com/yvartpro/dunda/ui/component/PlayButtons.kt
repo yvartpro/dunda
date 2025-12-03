@@ -53,7 +53,7 @@ fun PlayButtons(viewModel: MusicViewModel) {
     Row {
       IconButton(onClick = { viewModel.playPrev() }) {
         Icon(
-          painter = painterResource(R.drawable.previous),
+          painter = painterResource(R.drawable.skip_prev),
           tint = MaterialTheme.colorScheme.secondary,
           contentDescription = "Previous",
           modifier = Modifier.size(24.dp)
@@ -69,7 +69,7 @@ fun PlayButtons(viewModel: MusicViewModel) {
       }
       IconButton(onClick = { viewModel.playNext() }) {
         Icon(
-          painter = painterResource(R.drawable.next),
+          painter = painterResource(R.drawable.skip_next),
           tint = MaterialTheme.colorScheme.secondary,
           contentDescription = "Next",
           modifier = Modifier.size(24.dp)
