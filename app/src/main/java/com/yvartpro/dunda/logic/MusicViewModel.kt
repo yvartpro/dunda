@@ -135,21 +135,36 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
 
     // --- Media Library Methods ---
     private fun loadTracks() {
-        // Prevent re-loading if tracks are already loaded
         if (_tracks.value.isNotEmpty()) return
 
         viewModelScope.launch(Dispatchers.IO) {
-            val musicList = mutableListOf<MusicTrack>()
-            val projection = arrayOf(
-              MediaStore.Audio.Media._ID, MediaStore.Audio.Media.TITLE,
-              MediaStore.Audio.Media.ARTIST, MediaStore.Audio.Media.MIME_TYPE, MediaStore.Audio.Media.DATA
+            val mediaList = mutableListOf<MusicTrack>()
+            val minDurationMs = 120000 // 2 minutes
+
+            // More precise blocklist for folders that are almost always junk
+            val excludedPathSegments = listOf(
+                "/WhatsApp Voice Notes/", 
+                "/WhatsApp Business Voice Notes/", 
+                "/Call Recordings/", 
+                "/SoundRecorder/"
             )
-            val selection = "${MediaStore.Audio.Media.MIME_TYPE}=?"
-            val selectionArgs = arrayOf("audio/mpeg")
-            val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
+            val excludedTitlePrefixes = listOf("PTT-", "MSG-")
+
+            // Query for audio files
+            val audioProjection = arrayOf(
+                MediaStore.Audio.Media._ID,
+                MediaStore.Audio.Media.TITLE,
+                MediaStore.Audio.Media.ARTIST,
+                MediaStore.Audio.Media.DATA,
+                MediaStore.Audio.Media.DURATION
+            )
+            // Filter by duration and music flag
+            val audioSelection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= ?"
+            val audioSelectionArgs = arrayOf(minDurationMs.toString())
+            val audioQueryUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 
             getApplication<Application>().contentResolver.query(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, projection, selection, selectionArgs, sortOrder
+                audioQueryUri, audioProjection, audioSelection, audioSelectionArgs, null
             )?.use { cursor ->
                 val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                 val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
@@ -157,21 +172,66 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                 val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
 
                 while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idCol)
-                    val title = cursor.getString(titleCol)
-                    val artist = cursor.getString(artistCol)
                     val fullPath = cursor.getString(dataCol)
-                    val folderPath = File(fullPath).parent ?: ""
-                    val uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
-                    musicList.add(MusicTrack(id, title, artist, uri, folderPath))
+                    val title = cursor.getString(titleCol)
+
+                    // Check against the more precise blocklists
+                    val isJunkPath = excludedPathSegments.any { fullPath.contains(it, ignoreCase = true) }
+                    val isJunkTitle = excludedTitlePrefixes.any { title.startsWith(it, ignoreCase = true) }
+
+                    if (!isJunkPath && !isJunkTitle) {
+                        val id = cursor.getLong(idCol)
+                        val artist = cursor.getString(artistCol)
+                        val folderPath = File(fullPath).parent ?: ""
+                        val uri = ContentUris.withAppendedId(audioQueryUri, id)
+                        mediaList.add(MusicTrack(id, title, artist, uri, folderPath))
+                    }
                 }
             }
-            _tracks.value = musicList
-            _filtered.value = musicList
+
+            // Query for video files
+            val videoProjection = arrayOf(
+                MediaStore.Video.Media._ID,
+                MediaStore.Video.Media.TITLE,
+                MediaStore.Video.Media.ARTIST,
+                MediaStore.Video.Media.DATA
+            )
+            val videoQueryUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+
+            getApplication<Application>().contentResolver.query(
+                videoQueryUri, videoProjection, null, null, null
+            )?.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
+                val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.ARTIST)
+                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+
+                while (cursor.moveToNext()) {
+                    val fullPath = cursor.getString(dataCol)
+                    // Exclude specific junk video folders
+                    val isJunkPath = fullPath.contains("/WhatsApp Video/", ignoreCase = true) || 
+                                     fullPath.contains("/WhatsApp Business Video/", ignoreCase = true)
+
+                    if (!isJunkPath) {
+                        val id = cursor.getLong(idCol)
+                        val title = cursor.getString(titleCol)
+                        val artist = cursor.getString(artistCol)
+                        val folderPath = File(fullPath).parent ?: ""
+                        val uri = ContentUris.withAppendedId(videoQueryUri, id)
+                        mediaList.add(MusicTrack(id, title, artist, uri, folderPath))
+                    }
+                }
+            }
+
+            mediaList.sortBy { it.title }
+
+            _tracks.value = mediaList
+            _filtered.value = mediaList
             
-            // Since this is only called after the service is bound, musicService is guaranteed to be non-null
-            musicService?.setTrackList(musicList)
-            musicService?.queueRandomTrack()
+            musicService?.setTrackList(mediaList)
+            if (mediaList.isNotEmpty()) {
+                musicService?.queueRandomTrack()
+            }
         }
     }
 
