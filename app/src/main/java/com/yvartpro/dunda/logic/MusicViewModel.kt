@@ -195,12 +195,15 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                 MediaStore.Video.Media._ID,
                 MediaStore.Video.Media.TITLE,
                 MediaStore.Video.Media.ARTIST,
-                MediaStore.Video.Media.DATA
+                MediaStore.Video.Media.DATA,
+                MediaStore.Video.Media.DURATION
             )
+            val videoSelection = "${MediaStore.Video.Media.DURATION} >= ?"
+            val videoSelectionArgs = arrayOf(minDurationMs.toString())
             val videoQueryUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
 
             getApplication<Application>().contentResolver.query(
-                videoQueryUri, videoProjection, null, null, null
+                videoQueryUri, videoProjection, videoSelection, videoSelectionArgs, null
             )?.use { cursor ->
                 val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
                 val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
