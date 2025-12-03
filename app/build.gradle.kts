@@ -2,7 +2,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.google.gms) //firebase
 }
 
 android {
@@ -13,20 +12,30 @@ android {
         applicationId = "com.yvartpro.dunda"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.0.3"
+        versionCode = 5
+        versionName = "1.0.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
+    }
+
+    splits {
+      abi {
+        isEnable = true
+        reset()
+        include("arm64-v8a")
+        isUniversalApk = false
+      }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -67,8 +76,4 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.2")
     implementation("androidx.compose.material3:material3:1.3.0")
     implementation("androidx.media:media:1.7.1")
-    
-    //firebase
-    implementation(platform("com.google.firebase:firebase-bom:31.3.0"))
-    implementation("com.google.firebase:firebase-messaging")
 }
