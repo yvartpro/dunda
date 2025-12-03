@@ -36,23 +36,19 @@ class MusicService : Service(), AudioManager.OnAudioFocusChangeListener {
 
     private var tracks: List<MusicTrack> = emptyList()
     private var currentTrackIndex: Int = -1
+    private var wasPlayingBeforeTransientLoss = false
 
     // State flows to be observed by the ViewModel
     private val _currentTrack = MutableStateFlow<MusicTrack?>(null)
     val currentTrack = _currentTrack.asStateFlow()
-
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying = _isPlaying.asStateFlow()
-
     private val _progress = MutableStateFlow(0)
     val progress = _progress.asStateFlow()
-
     private val _duration = MutableStateFlow(0)
     val duration = _duration.asStateFlow()
-
     private val _isShuffling = MutableStateFlow(false)
     val isShuffling = _isShuffling.asStateFlow()
-
     private val _isLooping = MutableStateFlow(false)
     val isLooping = _isLooping.asStateFlow()
 
@@ -125,7 +121,7 @@ class MusicService : Service(), AudioManager.OnAudioFocusChangeListener {
     }
 
     fun togglePlayPause() {
-        if (isPlaying.value) pause() else resume()
+        if (isPlaying.value) pause() else if(requestAudioFocus()) resume()
     }
 
     fun playNext() {
@@ -188,19 +184,59 @@ class MusicService : Service(), AudioManager.OnAudioFocusChangeListener {
 
     override fun onAudioFocusChange(focusChange: Int) {
         when (focusChange) {
-            AudioManager.AUDIOFOCUS_LOSS, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT, AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+            AudioManager.AUDIOFOCUS_LOSS -> {
                 if (isPlaying.value) pause()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                 if (isPlaying.value) {
+                    wasPlayingBeforeTransientLoss = true
+                    pause()
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                if (isPlaying.value) player?.setVolume(0.1f, 0.1f)
+            }
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                player?.setVolume(1.0f, 1.0f) // Restore volume
+                if (wasPlayingBeforeTransientLoss) {
+                    resume()
+                    wasPlayingBeforeTransientLoss = false
+                }
             }
         }
     }
 
     private fun requestAudioFocus(): Boolean {
-        // ... (requestAudioFocus logic remains the same)
-        return true
+        val result: Int
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build()
+            audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(audioAttributes)
+                .setAcceptsDelayedFocusGain(true)
+                .setOnAudioFocusChangeListener(this)
+                .build()
+            result = audioManager.requestAudioFocus(audioFocusRequest!!)
+        } else {
+            @Suppress("DEPRECATION")
+            result = audioManager.requestAudioFocus(
+                this,
+                AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN
+            )
+        }
+        return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
     }
 
     private fun abandonAudioFocus() {
-        // ... (abandonAudioFocus logic remains the same)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(this)
+        }
     }
 
     override fun onDestroy() {
