@@ -97,7 +97,7 @@ class MusicService : Service(), AudioManager.OnAudioFocusChangeListener {
 
     fun queueRandomTrack() {
         if (tracks.isEmpty()) return
-        // Pick a random song to start with, but do NOT force shuffle mode on.
+        // Just pick a random song to start with, don't force shuffle mode.
         val randomIndex = tracks.indices.random()
         currentTrackIndex = randomIndex
         prepareTrack(tracks[randomIndex], playWhenReady = false)
