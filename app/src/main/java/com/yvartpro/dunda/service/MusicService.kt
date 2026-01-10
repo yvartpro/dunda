@@ -122,8 +122,10 @@ class MusicService : Service() {
 
   fun setTrackList(newTracks: List<MusicTrack>) {
     this.tracks = newTracks
-    player?.setMediaItems(newTracks.map { MediaItem.fromUri(it.uri) })
-    player?.prepare()
+    serviceScope.launch {
+        player?.setMediaItems(newTracks.map { MediaItem.fromUri(it.uri) })
+        player?.prepare()
+    }
   }
 
   fun playTrack(track: MusicTrack) {
@@ -131,9 +133,11 @@ class MusicService : Service() {
     currentTrackIndex = tracks.indexOf(track)
     if (currentTrackIndex == -1) return
 
-    player?.let {
-        it.seekTo(currentTrackIndex, 0L)
-        it.playWhenReady = true
+    serviceScope.launch {
+        player?.let {
+            it.seekTo(currentTrackIndex, 0L)
+            it.playWhenReady = true
+        }
     }
   }
 
@@ -141,47 +145,55 @@ class MusicService : Service() {
     if (tracks.isEmpty()) return
     val randomIndex = tracks.indices.random()
     currentTrackIndex = randomIndex
-    player?.let {
-        it.seekTo(currentTrackIndex, 0L)
-        it.playWhenReady = false
+    serviceScope.launch {
+        player?.let {
+            it.seekTo(currentTrackIndex, 0L)
+            it.playWhenReady = false
+        }
     }
   }
 
   private fun resume() {
-    player?.play()
+    serviceScope.launch { player?.play() }
   }
 
   private fun pause() {
-    player?.pause()
+    serviceScope.launch { player?.pause() }
   }
 
   fun togglePlayPause() {
-    player?.let {
-        if (it.isPlaying) pause() else resume()
+    serviceScope.launch {
+        player?.let {
+            if (it.isPlaying) it.pause() else it.play()
+        }
     }
   }
 
   fun playNext() {
-    player?.seekToNext()
+    serviceScope.launch { player?.seekToNext() }
   }
 
   fun playPrev() {
-    player?.seekToPrevious()
+    serviceScope.launch { player?.seekToPrevious() }
   }
   
   fun seekTo(position: Int) {
-    player?.seekTo(position.toLong())
-    _progress.value = position
+    serviceScope.launch {
+        player?.seekTo(position.toLong())
+        _progress.value = position
+    }
   }
 
   fun toggleShuffle() {
     _isShuffling.value = !_isShuffling.value
-    player?.shuffleModeEnabled = _isShuffling.value
+    serviceScope.launch { player?.shuffleModeEnabled = _isShuffling.value }
   }
 
   fun toggleLoop() {
     _isLooping.value = !_isLooping.value
-    player?.repeatMode = if (_isLooping.value) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+    serviceScope.launch {
+        player?.repeatMode = if (_isLooping.value) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+    }
   }
 
   private fun startProgressUpdater() {
