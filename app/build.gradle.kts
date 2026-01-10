@@ -69,16 +69,16 @@ dependencies {
 
     //additional
 
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.activity:activity-compose:1.9.2")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
-    implementation("androidx.navigation:navigation-compose:2.8.2")
-    implementation("androidx.compose.material3:material3:1.3.0")
-    implementation("androidx.media:media:1.7.1")
+    implementation(libs.androidx.core.ktx.v1131)
+    implementation(libs.androidx.activity.compose.v192)
+    implementation(libs.androidx.lifecycle.runtime.ktx.v284)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.media)
 
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.ui)
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation(libs.androidx.compose.material.icons.extended)
 }

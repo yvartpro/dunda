@@ -1,5 +1,8 @@
 package com.yvartpro.dunda.ui.screen
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -9,8 +12,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,6 +54,7 @@ fun EqualizerScreen(viewModel: MusicViewModel, navController: NavController) {
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -60,7 +68,7 @@ fun EqualizerScreen(viewModel: MusicViewModel, navController: NavController) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .height(550.dp)
                     .padding(horizontal = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
@@ -76,17 +84,17 @@ fun EqualizerScreen(viewModel: MusicViewModel, navController: NavController) {
                     )
                 }
             }
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            
+
+            Spacer(modifier = Modifier.height(64.dp))
+
             Text(
                 text = "Frequency Bands",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            
-            Spacer(modifier = Modifier.height(16.dp))
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
@@ -98,11 +106,14 @@ fun EqualizerBandSlider(
     enabled: Boolean,
     onValueChange: (Float) -> Unit
 ) {
+    val progressFraction = (band.level.toFloat() - range.first) / (range.second - range.first)
+    val barHeight = 250.dp
+    val barWidth = 8.dp
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxHeight()
     ) {
-        // Frequency label (e.g., 60Hz, 1kHz)
         val freqText = if (band.centerFreq < 1000000) "${band.centerFreq / 1000}Hz" else "${band.centerFreq / 1000000}kHz"
         Text(
             text = freqText,
@@ -113,29 +124,56 @@ fun EqualizerBandSlider(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Vertical Slider using a rotated Slider
         Box(
             modifier = Modifier
-                .weight(1f)
-                .width(44.dp),
+                .height(barHeight)
+                .width(44.dp)
+                .pointerInput(enabled) {
+                    if (!enabled) return@pointerInput
+                    detectTapGestures { offset ->
+                        val fraction = (1f - (offset.y / size.height)).coerceIn(0f, 1f)
+                        val newValue = range.first + (fraction * (range.second - range.first))
+                        onValueChange(newValue)
+                    }
+                }
+                .pointerInput(enabled) {
+                    if (!enabled) return@pointerInput
+                    detectDragGestures { change, _ ->
+                        val fraction = (1f - (change.position.y / size.height)).coerceIn(0f, 1f)
+                        val newValue = range.first + (fraction * (range.second - range.first))
+                        onValueChange(newValue)
+                    }
+                },
             contentAlignment = Alignment.Center
         ) {
-            Slider(
-                value = band.level.toFloat(),
-                onValueChange = onValueChange,
-                valueRange = range.first.toFloat()..range.second.toFloat(),
-                enabled = enabled,
-                modifier = Modifier
-                    .graphicsLayer {
-                        rotationZ = -90f
-                    }
-                    .width(280.dp) // This will be the height of the vertical slider
-            )
+            val trackColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)
+            val progressColor = if (enabled) MaterialTheme.colorScheme.primary else Color.Gray
+
+            Canvas(modifier = Modifier.fillMaxHeight().width(barWidth)) {
+                val canvasWidth = size.width
+                val canvasHeight = size.height
+                val cornerRadius = CornerRadius(canvasWidth / 2, canvasWidth / 2)
+                
+                // Draw Track
+                drawRoundRect(
+                    color = trackColor,
+                    size = size,
+                    cornerRadius = cornerRadius
+                )
+                
+                // Draw Progress (from bottom)
+                val activeHeight = canvasHeight * progressFraction.coerceIn(0f, 1f)
+                drawRoundRect(
+                    color = progressColor,
+                    topLeft = Offset(0f, canvasHeight - activeHeight),
+                    size = Size(canvasWidth, activeHeight),
+                    cornerRadius = cornerRadius
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
-        
-        // Level label (e.g., +3dB)
+
         Text(
             text = "${band.level / 100}dB",
             fontSize = 10.sp,
