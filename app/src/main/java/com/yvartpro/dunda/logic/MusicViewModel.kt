@@ -306,7 +306,6 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
 
     fun selectFolder(folder: Folder) {
         _filtered.value = folder.tracks
-        musicService?.setTrackList(folder.tracks)
     }
 
     fun filter(input: String) {
@@ -317,6 +316,5 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                 it.title.contains(input, ignoreCase = true) || (it.artist?.contains(input, ignoreCase = true) ?: false)
             }
         }
-        musicService?.setTrackList(_filtered.value)
     }
 }

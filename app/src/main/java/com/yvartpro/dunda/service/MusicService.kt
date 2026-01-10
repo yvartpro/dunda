@@ -127,6 +127,7 @@ class MusicService : Service() {
   }
 
   fun setTrackList(newTracks: List<MusicTrack>) {
+    if (this.tracks == newTracks) return
     this.tracks = newTracks
     serviceScope.launch {
         player?.setMediaItems(newTracks.map { MediaItem.fromUri(it.uri) })
