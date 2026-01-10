@@ -30,6 +30,7 @@ class MusicService : Service() {
 
   private val serviceJob = Job()
   private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
+  private var progressJob: Job? = null
 
   private var tracks: List<MusicTrack> = emptyList()
   private var currentTrackIndex: Int = -1
@@ -98,15 +99,17 @@ class MusicService : Service() {
              if (index >= 0 && index < tracks.size) {
                  currentTrackIndex = index
                  _currentTrack.value = tracks[index]
-                 _duration.value = duration.toInt()
+                 val dur = player?.duration ?: 0L
+                 _duration.value = if (dur == C.TIME_UNSET) 0 else dur.toInt()
                  updateNotification()
              }
           }
 
           override fun onPlaybackStateChanged(playbackState: Int) {
             if (playbackState == Player.STATE_READY) {
-                _duration.value = duration.toInt()
-                _audioSessionId.value = audioSessionId
+                val dur = player?.duration ?: 0L
+                _duration.value = if (dur == C.TIME_UNSET) 0 else dur.toInt()
+                _audioSessionId.value = player?.audioSessionId
             }
           }
         })
@@ -201,7 +204,7 @@ class MusicService : Service() {
 
   private fun startProgressUpdater() {
     stopProgressUpdater() // Ensure only one updater is running
-    serviceScope.launch {
+    progressJob = serviceScope.launch {
       while (isActive) {
         player?.let {
           if (it.isPlaying) {
@@ -214,7 +217,8 @@ class MusicService : Service() {
   }
 
   private fun stopProgressUpdater() {
-    serviceScope.coroutineContext.cancelChildren()
+    progressJob?.cancel()
+    progressJob = null
   }
 
   private fun updateNotification() {
