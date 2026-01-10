@@ -178,8 +178,7 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
 
     // --- Playback Control Methods (delegating to service) ---
     fun playTrack(track: MusicTrack) {
-      musicService?.setTrackList(filtered.value)
-      musicService?.playTrack(track)
+      musicService?.playTrackWithList(track, filtered.value)
     }
 
     fun togglePlayPause() { musicService?.togglePlayPause() }

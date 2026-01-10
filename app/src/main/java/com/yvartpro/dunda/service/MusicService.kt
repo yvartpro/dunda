@@ -148,6 +148,20 @@ class MusicService : Service() {
     }
   }
 
+  fun playTrackWithList(track: MusicTrack, newTracks: List<MusicTrack>) {
+    this.tracks = newTracks
+    currentTrackIndex = newTracks.indexOf(track)
+    if (currentTrackIndex == -1) return
+
+    serviceScope.launch {
+        player?.let {
+            it.setMediaItems(newTracks.map { MediaItem.fromUri(it.uri) }, currentTrackIndex, 0L)
+            it.prepare()
+            it.play()
+        }
+    }
+  }
+
   fun queueRandomTrack() {
     if (tracks.isEmpty()) return
     val randomIndex = tracks.indices.random()

@@ -3,7 +3,9 @@ package com.yvartpro.dunda.ui.screen
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -26,6 +28,7 @@ import com.yvartpro.dunda.R
 import com.yvartpro.dunda.ui.component.DraggableSheet
 import com.yvartpro.dunda.ui.component.FolderSheet
 import com.yvartpro.dunda.ui.component.PlayButtons
+import com.yvartpro.dunda.ui.component.PlayerSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +38,7 @@ fun PlayerScreen(
 ) {
   val currentTrack by viewModel.currentTrack.collectAsState()
   val showFolderSheet by viewModel.showFolderSheet.collectAsState()
+  val showSheet by viewModel.showSheet.collectAsState()
 
 
   Scaffold(
@@ -79,15 +83,31 @@ fun PlayerScreen(
     },
     bottomBar = {
       Surface(
-        color = MaterialTheme.colorScheme.background,
         tonalElevation = 8.dp,
         modifier = Modifier
           .fillMaxWidth()
-          .background(MaterialTheme.colorScheme.background)
-          .padding(top = 16.dp)
           .navigationBarsPadding()
       ) {
-        PlayButtons(viewModel)
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(vertical = 12.dp)
+                    .width(40.dp)
+                    .height(4.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        shape = RoundedCornerShape(2.dp)
+                    )
+                    .clickable { 
+                        currentTrack?.let { viewModel.toggleShownTrack(it) }
+                        viewModel.toggleShowSheet() 
+                    }
+            )
+            PlayButtons(viewModel)
+        }
       }
     }
   ) { padding ->
@@ -102,6 +122,16 @@ fun PlayerScreen(
         )
       }
     }
+
+    if (showSheet) {
+        DraggableSheet(
+            title = stringResource(R.string.song_details),
+            onDismiss = { viewModel.toggleShowSheet() }
+        ) {
+            PlayerSheet(viewModel)
+        }
+    }
+
     Column(
       modifier = Modifier
         .fillMaxSize()
