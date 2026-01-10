@@ -47,6 +47,8 @@ class MusicService : Service() {
   val isShuffling = _isShuffling.asStateFlow()
   private val _isLooping = MutableStateFlow(false)
   val isLooping = _isLooping.asStateFlow()
+  private val _audioSessionId = MutableStateFlow<Int?>(null)
+  val audioSessionId = _audioSessionId.asStateFlow()
 
   inner class MusicBinder : Binder() {
     fun getService(): MusicService = this@MusicService
@@ -104,6 +106,7 @@ class MusicService : Service() {
           override fun onPlaybackStateChanged(playbackState: Int) {
             if (playbackState == Player.STATE_READY) {
                 _duration.value = duration.toInt()
+                _audioSessionId.value = audioSessionId
             }
           }
         })

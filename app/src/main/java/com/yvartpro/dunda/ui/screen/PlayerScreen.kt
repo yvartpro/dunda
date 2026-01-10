@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -53,6 +54,15 @@ fun PlayerScreen(
             )
           },
           actions = {
+            IconButton(onClick = {
+              navController.navigate("equalizer")
+            }) {
+              Icon(
+                imageVector = Icons.Filled.Tune,
+                contentDescription = "Equalizer",
+                tint = MaterialTheme.colorScheme.onBackground
+              )
+            }
             IconButton(onClick = {
               viewModel.toggleShowFolderSheet()
               viewModel.loadFolders()

@@ -11,6 +11,7 @@ import android.os.IBinder
 import android.provider.MediaStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import android.media.audiofx.Equalizer
 import com.yvartpro.dunda.service.MusicService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,6 +62,22 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
   private val _isShuffling = MutableStateFlow(false)
   val isShuffling = _isShuffling.asStateFlow()
 
+  // Equalizer state
+  private var equalizer: Equalizer? = null
+  private val _isEqualizerEnabled = MutableStateFlow(false)
+  val isEqualizerEnabled = _isEqualizerEnabled.asStateFlow()
+  private val _equalizerBands = MutableStateFlow<List<EqualizerBand>>(emptyList())
+  val equalizerBands = _equalizerBands.asStateFlow()
+  private val _equalizerFreqRange = MutableStateFlow<Pair<Int, Int>>(0 to 0)
+  val equalizerFreqRange = _equalizerFreqRange.asStateFlow()
+
+  data class EqualizerBand(
+    val index: Short,
+    val centerFreq: Int,
+    val level: Short
+  )
+
+
   // UI-specific state
   private val _isSearch = MutableStateFlow(false)
   val isSearch = _isSearch.asStateFlow()
@@ -95,7 +112,46 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
         it.duration.onEach { dur -> _duration.value = dur / 1000f }.launchIn(viewModelScope)
         it.isShuffling.onEach { shuffling -> _isShuffling.value = shuffling }.launchIn(viewModelScope)
         it.isLooping.onEach { looping -> _isLooping.value = looping }.launchIn(viewModelScope)
+        it.audioSessionId.onEach { sessionId ->
+            if (sessionId != null) setupEqualizer(sessionId)
+        }.launchIn(viewModelScope)
       }
+    }
+
+    private fun setupEqualizer(sessionId: Int) {
+        try {
+            equalizer?.release()
+            equalizer = Equalizer(0, sessionId).apply {
+                enabled = _isEqualizerEnabled.value
+                val bands = mutableListOf<EqualizerBand>()
+                for (i in 0 until numberOfBands) {
+                    val bandIndex = i.toShort()
+                    bands.add(
+                        EqualizerBand(
+                            index = bandIndex,
+                            centerFreq = getCenterFreq(bandIndex),
+                            level = getBandLevel(bandIndex)
+                        )
+                    )
+                }
+                _equalizerBands.value = bands
+                _equalizerFreqRange.value = bandLevelRange[0].toInt() to bandLevelRange[1].toInt()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun toggleEqualizer() {
+        _isEqualizerEnabled.value = !_isEqualizerEnabled.value
+        equalizer?.enabled = _isEqualizerEnabled.value
+    }
+
+    fun setBandLevel(bandIndex: Short, level: Short) {
+        equalizer?.setBandLevel(bandIndex, level)
+        _equalizerBands.value = _equalizerBands.value.map {
+            if (it.index == bandIndex) it.copy(level = level) else it
+        }
     }
 
     init {

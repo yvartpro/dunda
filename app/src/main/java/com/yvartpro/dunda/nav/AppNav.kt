@@ -9,6 +9,7 @@ import com.yvartpro.dunda.logic.MusicTrack
 import com.yvartpro.dunda.logic.MusicViewModel
 import com.yvartpro.dunda.ui.screen.MusicListScreen
 import com.yvartpro.dunda.ui.screen.PlayerScreen
+import com.yvartpro.dunda.ui.screen.EqualizerScreen
 
 @Composable
 fun AppNav(viewModel: MusicViewModel) {
@@ -26,6 +27,9 @@ fun AppNav(viewModel: MusicViewModel) {
         }
         composable("player") {
             PlayerScreen(viewModel, navController)
+        }
+        composable("equalizer") {
+            EqualizerScreen(viewModel, navController)
         }
     }
 }
