@@ -116,13 +116,77 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
         musicService = binder.getService()
         isBound = true
         observeServiceState()
-        // Now that the service is connected, load the tracks with force refresh.
-        loadTracks(force = true)
+        
+        // If there was a pending URI to play, play it now.
+        pendingUri?.let {
+            playFromUri(it)
+            pendingUri = null
+        } ?: run {
+            // Otherwise load tracks normally
+            loadTracks(force = true)
+        }
       }
 
       override fun onServiceDisconnected(arg0: ComponentName) {
         isBound = false
       }
+    }
+
+    private var pendingUri: Uri? = null
+
+    fun handleIntent(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_VIEW) {
+            val uri = intent.data ?: return
+            if (isBound) {
+                playFromUri(uri)
+            } else {
+                pendingUri = uri
+            }
+        }
+    }
+
+    private fun playFromUri(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Try to find if this track exists in our library first
+            val existingTrack = _tracks.value.find { it.uri == uri }
+            if (existingTrack != null) {
+                musicService?.playTrackWithList(existingTrack, _tracks.value)
+            } else {
+                // If not found, create a temporary MusicTrack and play it
+                val track = createTrackFromUri(uri)
+                musicService?.playTrackWithList(track, listOf(track))
+            }
+            // Show the player sheet automatically
+            _showSheet.value = true
+        }
+    }
+
+    private fun createTrackFromUri(uri: Uri): MusicTrack {
+        var title = "Unknown"
+        var artist = "Unknown"
+        
+        getApplication<Application>().contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
+            val artistIndex = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
+            if (cursor.moveToFirst()) {
+                if (nameIndex != -1) title = cursor.getString(nameIndex) ?: "Unknown"
+                if (artistIndex != -1) artist = cursor.getString(artistIndex) ?: "Unknown"
+            }
+        }
+        
+        // If content resolver failed (e.g. file:// uri), use path
+        if (title == "Unknown") {
+            title = uri.path?.substringAfterLast("/") ?: "Unknown"
+        }
+
+        return MusicTrack(
+            id = -1, // Temporary ID
+            title = title,
+            artist = artist,
+            uri = uri,
+            folderPath = "",
+            isVideo = uri.toString().contains("video", ignoreCase = true)
+        )
     }
 
     private fun observeServiceState() {
