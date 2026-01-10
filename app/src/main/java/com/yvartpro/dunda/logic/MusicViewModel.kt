@@ -1,5 +1,6 @@
 package com.yvartpro.dunda.logic
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.content.ComponentName
 import android.content.ContentUris
@@ -13,7 +14,19 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import android.media.audiofx.Equalizer
 import com.yvartpro.dunda.service.MusicService
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
+import androidx.media3.transformer.Composition
+import androidx.media3.transformer.EditedMediaItem
+import androidx.media3.transformer.ExportException
+import androidx.media3.transformer.ExportResult
+import androidx.media3.transformer.Transformer
+import android.os.Environment
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
+import com.yvartpro.dunda.ui.component.Logger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
@@ -26,7 +39,8 @@ data class MusicTrack(
   val title: String,
   val artist: String?,
   val uri: Uri,
-  val folderPath: String
+  val folderPath: String,
+  val isVideo: Boolean = false
 )
 
 data class Folder(
@@ -45,6 +59,7 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
   val filtered = _filtered.asStateFlow()
 
   // Service connection
+  @SuppressLint("StaticFieldLeak")
   private var musicService: MusicService? = null
   private var isBound = false
 
@@ -88,6 +103,12 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
   private val _shownTrack = MutableStateFlow<MusicTrack?>(null)
   val showTrack = _shownTrack.asStateFlow()
 
+  // Extraction state
+  private val _exportingTrackId = MutableStateFlow<Long?>(null)
+  val exportingTrackId = _exportingTrackId.asStateFlow()
+  private val _exportProgress = MutableStateFlow(0f)
+  val exportProgress = _exportProgress.asStateFlow()
+
 
     private val connection = object : ServiceConnection {
       override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -95,8 +116,8 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
         musicService = binder.getService()
         isBound = true
         observeServiceState()
-        // Now that the service is connected, load the tracks.
-        loadTracks()
+        // Now that the service is connected, load the tracks with force refresh.
+        loadTracks(force = true)
       }
 
       override fun onServiceDisconnected(arg0: ComponentName) {
@@ -154,6 +175,69 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+  @OptIn(UnstableApi::class)
+  fun extractAudio(track: MusicTrack) {
+        if (_exportingTrackId.value != null) return
+        _exportingTrackId.value = track.id
+        _exportProgress.value = 0f
+
+        viewModelScope.launch {
+            try {
+                val context = getApplication<Application>()
+                val dundaDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "Dunda")
+                if (!dundaDir.exists()) dundaDir.mkdirs()
+
+                // Change extension to .m4a as MP3 is not supported for output by Transformer's default muxer
+                val outputFileName = "Dunda_${track.title.replace(" ", "_")}.m4a"
+                val outputFile = File(dundaDir, outputFileName)
+
+                val transformer = Transformer.Builder(context)
+                    .setAudioMimeType(MimeTypes.AUDIO_AAC) // Use AAC instead of MPEG
+                    .build()
+
+                val editedMediaItem = EditedMediaItem.Builder(MediaItem.fromUri(track.uri))
+                    .setRemoveVideo(true)
+                    .build()
+
+                transformer.addListener(object : Transformer.Listener {
+                    override fun onCompleted(composition: Composition, result: ExportResult) {
+                        _exportingTrackId.value = null
+                        _exportProgress.value = 1f
+                        Logger.d("Extract", "Extracted song: $outputFileName")
+                        loadTracks(force = true) // Refresh list to see new file
+                    }
+
+                    override fun onError(
+                        composition: Composition,
+                        result: ExportResult,
+                        exception: ExportException
+                    ) {
+                        _exportingTrackId.value = null
+                        Logger.e("Extract","Error exporting audio: ${exception.message}")
+                        exception.printStackTrace()
+                    }
+                })
+
+                transformer.start(editedMediaItem, outputFile.absolutePath)
+
+                // Progress polling loop
+                while (_exportingTrackId.value == track.id) {
+                    val progressHolder = androidx.media3.transformer.ProgressHolder()
+                    val state = transformer.getProgress(progressHolder)
+                    if (state == Transformer.PROGRESS_STATE_AVAILABLE) {
+                        _exportProgress.value = progressHolder.progress / 100f
+                        Logger.d("Extract", "Progress for ${track.title}: ${progressHolder.progress}%")
+                    }
+                    delay(500)
+                }
+            } catch (e: Exception) {
+                _exportingTrackId.value = null
+                Logger.e("Extract","Unexpected error: ${e.message}")
+                e.printStackTrace()
+            }
+        }
+    }
+
     init {
       // Just bind to the service. Track loading will start when the service is connected.
       Intent(app, MusicService::class.java).also { intent ->
@@ -189,12 +273,12 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleShuffle() { musicService?.toggleShuffle() }
 
     // --- Media Library Methods ---
-    private fun loadTracks() {
-        if (_tracks.value.isNotEmpty()) return
+    private fun loadTracks(force: Boolean = false) {
+        if (!force && _tracks.value.isNotEmpty()) return
 
         viewModelScope.launch(Dispatchers.IO) {
             val mediaList = mutableListOf<MusicTrack>()
-            val minDurationMs = 120000 // 2 minutes
+            val minDurationMs = 5000 // 5 seconds
 
             // Unified and more precise blocklist for junk folders
             val excludedPathSegments = listOf(
@@ -203,8 +287,7 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                 "/Call Recordings/", 
                 "/SoundRecorder/",
                 "/Recordings/",
-                "/Recordings/Music/",
-                "/Camera/"
+                "/Recordings/Music/"
             )
             val excludedTitlePrefixes = listOf("PTT-", "MSG-")
 
@@ -240,7 +323,7 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                         val artist = cursor.getString(artistCol)
                         val folderPath = File(fullPath).parent ?: ""
                         val uri = ContentUris.withAppendedId(audioQueryUri, id)
-                        mediaList.add(MusicTrack(id, title, artist, uri, folderPath))
+                        mediaList.add(MusicTrack(id, title, artist, uri, folderPath, isVideo = false))
                     }
                 }
             }
@@ -249,7 +332,6 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
             val videoProjection = arrayOf(
                 MediaStore.Video.Media._ID,
                 MediaStore.Video.Media.TITLE,
-                MediaStore.Video.Media.ARTIST,
                 MediaStore.Video.Media.DATA,
                 MediaStore.Video.Media.DURATION
             )
@@ -262,7 +344,6 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
             )?.use { cursor ->
                 val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
                 val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
-                val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.ARTIST)
                 val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
 
                 while (cursor.moveToNext()) {
@@ -273,15 +354,17 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                     if (!isJunkPath) {
                         val id = cursor.getLong(idCol)
                         val title = cursor.getString(titleCol)
-                        val artist = cursor.getString(artistCol)
+                        val artist: String? = null
                         val folderPath = File(fullPath).parent ?: ""
                         val uri = ContentUris.withAppendedId(videoQueryUri, id)
-                        mediaList.add(MusicTrack(id, title, artist, uri, folderPath))
+                        mediaList.add(MusicTrack(id, title, artist, uri, folderPath, isVideo = true))
                     }
                 }
             }
 
             mediaList.sortBy { it.title }
+
+            android.util.Log.d("MusicViewModel", "Total: ${mediaList.size}, Audio: ${mediaList.count { !it.isVideo }}, Video: ${mediaList.count { it.isVideo }}")
 
             _tracks.value = mediaList
             _filtered.value = mediaList

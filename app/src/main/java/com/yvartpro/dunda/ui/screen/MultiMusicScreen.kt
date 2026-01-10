@@ -17,9 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,6 +45,8 @@ fun MusicListScreen(
   val currentTrack by viewModel.currentTrack.collectAsState()
   val showSheet by viewModel.showSheet.collectAsState()
   val isPlaying by viewModel.isPlaying.collectAsState()
+  val exportingTrackId by viewModel.exportingTrackId.collectAsState()
+  val exportProgress by viewModel.exportProgress.collectAsState()
 
 
   Scaffold(
@@ -108,14 +112,31 @@ fun MusicListScreen(
       items(tracks.value) { track ->
         ListItem(
           headlineContent = {
-            Text(
-              text = track.title,
-              maxLines = 1,
-              overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Text(
+                text = track.title,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
+              )
+              if (track.isVideo) {
+                Surface(
+                  color = MaterialTheme.colorScheme.tertiaryContainer,
+                  shape = MaterialTheme.shapes.extraSmall,
+                  modifier = Modifier.padding(start = 4.dp)
+                ) {
+                  Text(
+                    text = "VIDEO",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 8.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                  )
+                }
+              }
+            }
           },
           trailingContent = {
-            Row {
+            Row(verticalAlignment = Alignment.CenterVertically) {
               IconButton(
                 onClick = {
                   if (currentTrack == track) viewModel.togglePlayPause() else viewModel.playTrack(
@@ -142,8 +163,8 @@ fun MusicListScreen(
                 Icon(
                   painter = painterResource(R.drawable.more_vert),
                   tint = if (currentTrack == track) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                  contentDescription = "play",
-                  modifier = Modifier.size(40.dp),
+                  contentDescription = "more",
+                  modifier = Modifier.size(24.dp), // Reduced size to match better
                 )
               }
             }

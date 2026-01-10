@@ -9,7 +9,7 @@ object Logger{
     Log.d(TAG, "[$subTag] $msg")
   }
 
-  fun e(subTag: String, msg: String, throwable: Throwable) {
+  fun e(subTag: String, msg: String, throwable: Throwable? = null) {
     Log.e(TAG, "[${subTag}] $msg", throwable)
   }
 }
