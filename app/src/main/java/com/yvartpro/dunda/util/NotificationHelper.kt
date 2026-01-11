@@ -41,6 +41,24 @@ fun buildNowPlayingNotification(
     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
   )
 
+  val nextAction = NotificationCompat.Action(
+    R.drawable.skip_next,
+    "Next",
+    PendingIntent.getService(
+      context, 0, Intent(context, MusicService::class.java).setAction(MusicService.ACTION_NEXT),
+      PendingIntent.FLAG_IMMUTABLE
+    )
+  )
+
+  val prevAction = NotificationCompat.Action(
+    R.drawable.skip_prev,
+    "Prev",
+    PendingIntent.getService(
+      context, 0, Intent(context, MusicService::class.java).setAction(MusicService.ACTION_PREV),
+      PendingIntent.FLAG_IMMUTABLE
+    )
+  )
+
   val playPauseAction = if (isPlaying) {
     NotificationCompat.Action(
       R.drawable.pause,
@@ -67,7 +85,9 @@ fun buildNowPlayingNotification(
     .setContentText("${track.title} - ${track.artist ?: "Unknown"}")
     .setContentIntent(pendingIntent)
     .setOngoing(isPlaying)
+    .addAction(prevAction)
     .addAction(playPauseAction)
+    .addAction(nextAction)
     .setStyle(androidx.media.app.NotificationCompat.MediaStyle()
       .setShowActionsInCompactView(0)
     )
