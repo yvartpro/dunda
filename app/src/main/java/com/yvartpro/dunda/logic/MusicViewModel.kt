@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import android.media.MediaScannerConnection
 import java.io.File
 
 data class MusicTrack(
@@ -266,7 +267,15 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                     override fun onCompleted(composition: Composition, result: ExportResult) {
                         _exportingTrackId.value = null
                         _exportProgress.value = 1f
-                        Logger.d("Extract", "Extracted song: $outputFileName")
+                        
+                        // Notify MediaScanner about the new file
+                        MediaScannerConnection.scanFile(
+                            context,
+                            arrayOf(outputFile.absolutePath),
+                            arrayOf("audio/mp4"), // .m4a is audio/mp4
+                            null
+                        )
+                        
                         loadTracksForce() // Refresh list to see new file
                     }
 
@@ -276,7 +285,6 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                         exception: ExportException
                     ) {
                         _exportingTrackId.value = null
-                        Logger.e("Extract","Error exporting audio: ${exception.message}")
                         exception.printStackTrace()
                     }
                 })
@@ -302,9 +310,8 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     init {
-      // Just bind to the service. Track loading will start when the service is connected.
       Intent(app, MusicService::class.java).also { intent ->
-        app.startService(intent) // Start the service to keep it running
+        app.startService(intent)
         app.bindService(intent, connection, Context.BIND_AUTO_CREATE)
       }
     }
@@ -345,16 +352,13 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
 
         viewModelScope.launch(Dispatchers.IO) {
             val mediaList = mutableListOf<MusicTrack>()
-            val minDurationMs = 5000 // 5 seconds
+            val minDurationMs = 1000 // 1 second
 
-            // Unified and more precise blocklist for junk folders
             val excludedPathSegments = listOf(
                 "/WhatsApp Voice Notes/", 
                 "/WhatsApp Business Voice Notes/", 
                 "/Call Recordings/", 
-                "/SoundRecorder/",
-                "/Recordings/",
-                "/Recordings/Music/"
+                "/SoundRecorder/"
             )
             val excludedTitlePrefixes = listOf("PTT-", "MSG-")
 
@@ -366,8 +370,8 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                 MediaStore.Audio.Media.DATA,
                 MediaStore.Audio.Media.DURATION
             )
-            val audioSelection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= ?"
-            val audioSelectionArgs = arrayOf(minDurationMs.toString())
+            val audioSelection = null
+            val audioSelectionArgs = null
             val audioQueryUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 
             try {
@@ -379,19 +383,26 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                     val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
                     val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
 
+                    val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+
                     while (cursor.moveToNext()) {
                         val fullPath = cursor.getString(dataCol)
                         val title = cursor.getString(titleCol)
+                        val duration = cursor.getLong(durationCol)
 
                         val isJunkPath = excludedPathSegments.any { fullPath.contains(it, ignoreCase = true) }
                         val isJunkTitle = excludedTitlePrefixes.any { title.startsWith(it, ignoreCase = true) }
+                        val isTooShort = duration in 1..minDurationMs
 
-                        if (!isJunkPath && !isJunkTitle) {
+                        if (!isJunkPath && !isJunkTitle && !isTooShort) {
                             val id = cursor.getLong(idCol)
                             val artist = cursor.getString(artistCol)
                             val folderPath = File(fullPath).parent ?: ""
                             val uri = ContentUris.withAppendedId(audioQueryUri, id)
                             mediaList.add(MusicTrack(id, title, artist, uri, folderPath, isVideo = false))
+                            Logger.d("MusicViewModel", "Added audio: $title at $fullPath")
+                        } else {
+                            Logger.d("MusicViewModel", "Skipped junk audio: $title at $fullPath (pathJunk=$isJunkPath, titleJunk=$isJunkTitle)")
                         }
                     }
                 }
@@ -406,8 +417,8 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                 MediaStore.Video.Media.DATA,
                 MediaStore.Video.Media.DURATION
             )
-            val videoSelection = "${MediaStore.Video.Media.DURATION} >= ?"
-            val videoSelectionArgs = arrayOf(minDurationMs.toString())
+            val videoSelection = null
+            val videoSelectionArgs = null
             val videoQueryUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
 
             try {
@@ -430,6 +441,9 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                             val folderPath = File(fullPath).parent ?: ""
                             val uri = ContentUris.withAppendedId(videoQueryUri, id)
                             mediaList.add(MusicTrack(id, title, artist, uri, folderPath, isVideo = true))
+                            Logger.d("MusicViewModel", "Added video: $title at $fullPath")
+                        } else {
+                            Logger.d("MusicViewModel", "Skipped junk video: $fullPath")
                         }
                     }
                 }
@@ -438,9 +452,6 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
             }
 
             mediaList.sortBy { it.title }
-
-            android.util.Log.d("MusicViewModel", "Total: ${mediaList.size}, Audio: ${mediaList.count { !it.isVideo }}, Video: ${mediaList.count { it.isVideo }}")
-
             _tracks.value = mediaList
             _filtered.value = mediaList
             
@@ -448,17 +459,22 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
             if (mediaList.isNotEmpty()) {
                 musicService?.queueRandomTrack()
             }
+            updateFolders(mediaList)
+            Logger.d("MusicViewModel", "Loaded ${mediaList.size} tracks and ${_folders.value.size} folders")
         }
     }
 
+    private fun updateFolders(tracks: List<MusicTrack>) {
+        val grouped = tracks.groupBy { it.folderPath }
+        _folders.value = grouped.map { (path, tracks) ->
+            val name = if (path.isEmpty()) "Root" else File(path).name
+            Folder(name = name, path = path, tracks = tracks)
+        }.filter { it.name.isNotEmpty() }
+        Logger.d("MusicViewModel", "Updated folders list: ${_folders.value.map { it.name }}")
+    }
+
     fun loadFolders() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val musicList = _tracks.value
-            val grouped = musicList.groupBy { it.folderPath }
-            _folders.value = grouped.map { (path, tracks) ->
-                Folder(name = path.substringAfterLast("/"), path = path, tracks = tracks)
-            }
-        }
+        updateFolders(_tracks.value)
     }
 
     fun selectFolder(folder: Folder) {
