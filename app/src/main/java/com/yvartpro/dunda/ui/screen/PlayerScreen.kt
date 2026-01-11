@@ -106,7 +106,9 @@ fun PlayerScreen(
                         viewModel.toggleShowSheet() 
                     }
             )
-            PlayButtons(viewModel)
+            PlayButtons(viewModel, navigateToList = {
+                navController.navigate("list")
+            })
         }
       }
     }

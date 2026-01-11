@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -22,13 +24,13 @@ import com.yvartpro.dunda.logic.MusicViewModel
 
 
 @Composable
-fun PlayButtons(viewModel: MusicViewModel) {
+fun PlayButtons(viewModel: MusicViewModel, navigateToList: (() -> Unit)? = null) {
   val isPlaying by viewModel.isPlaying.collectAsState()
   val isLooping by viewModel.isLooping.collectAsState()
   val isShuffling by viewModel.isShuffling.collectAsState()
   val context = LocalContext.current
 
-  MusicProgressBar(viewModel) //progression bar
+  MusicProgressBar(viewModel)
   Row(
     horizontalArrangement = Arrangement.SpaceEvenly,
     modifier = Modifier
@@ -76,13 +78,25 @@ fun PlayButtons(viewModel: MusicViewModel) {
         )
       }
     }
-    IconButton(onClick = { viewModel.toggleLoop() }) {
-      Icon(
-        painter = if (isLooping) painterResource(R.drawable.repeat_one) else painterResource(R.drawable.repeat),
-        tint = if (isLooping) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-        contentDescription = "Loop",
-        modifier = Modifier.size(24.dp)
-      )
+    Row {
+      IconButton(onClick = { viewModel.toggleLoop() }) {
+        Icon(
+          painter = if (isLooping) painterResource(R.drawable.repeat_one) else painterResource(R.drawable.repeat),
+          tint = if (isLooping) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+          contentDescription = "Loop",
+          modifier = Modifier.size(24.dp)
+        )
+      }
+      navigateToList?.let{
+        IconButton(onClick = it) {
+          Icon(
+            Icons.Filled.Menu,
+            contentDescription = "Menu",
+            tint = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier.size(24.dp)
+          )
+        }
+      }
     }
   }
 }
