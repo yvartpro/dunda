@@ -10,73 +10,81 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import com.yvartpro.dunda.logic.MusicViewModel
 import com.yvartpro.dunda.nav.AppNav
+import com.yvartpro.dunda.ui.screen.PermissionScreen
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var musicViewModel: MusicViewModel
+    private var hasPermissions by mutableStateOf(false)
 
     private val requestPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { _ ->
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+            val essentialGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                results[Manifest.permission.READ_MEDIA_AUDIO] == true
+            } else {
+                results[Manifest.permission.READ_EXTERNAL_STORAGE] == true
+            }
+
+            if (essentialGranted) {
+                hasPermissions = true
+                musicViewModel.loadTracksForce()
+            }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Initialize ViewModel here so we can use it to handle the intent
         musicViewModel = ViewModelProvider(this)[MusicViewModel::class.java]
         
         enableEdgeToEdge()
-        checkPermissions()
+        hasPermissions = checkPermissionsSilent()
 
-        // Handle intent if the app was started via an audio file
         musicViewModel.handleIntent(intent)
 
         setContent {
             DundaTheme {
-                AppNav(musicViewModel)
+                if (hasPermissions) {
+                    AppNav(musicViewModel)
+                } else {
+                    PermissionScreen(onRequestPermission = {
+                        requestPermissions()
+                    })
+                }
             }
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // Handle intent if the app was already running and a new file was selected
         musicViewModel.handleIntent(intent)
     }
 
-    private fun checkPermissions() {
+    private fun checkPermissionsSilent(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED
+        } else {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private fun requestPermissions() {
         val permissionsToRequest = mutableListOf<String>()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                permissionsToRequest.add(Manifest.permission.READ_MEDIA_AUDIO)
-            }
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                permissionsToRequest.add(Manifest.permission.READ_MEDIA_VIDEO)
-            }
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
-            }
+            permissionsToRequest.add(Manifest.permission.READ_MEDIA_AUDIO)
+            permissionsToRequest.add(Manifest.permission.READ_MEDIA_VIDEO)
+            permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
         } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
+            permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
-        if (permissionsToRequest.isNotEmpty()) {
-            requestPermissionLauncher.launch(permissionsToRequest.toTypedArray())
-        }
+        requestPermissionLauncher.launch(permissionsToRequest.toTypedArray())
     }
 }

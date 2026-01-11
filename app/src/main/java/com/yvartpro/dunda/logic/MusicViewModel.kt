@@ -117,13 +117,12 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
         isBound = true
         observeServiceState()
         
-        // If there was a pending URI to play, play it now.
-        pendingUri?.let {
-            playFromUri(it)
+        val uriToPlay = pendingUri
+        if (uriToPlay != null) {
+            playFromUri(uriToPlay)
             pendingUri = null
-        } ?: run {
-            // Otherwise load tracks normally
-            loadTracks(force = true)
+        } else {
+            loadTracks(force = false)
         }
       }
 
@@ -147,16 +146,13 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun playFromUri(uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
-            // Try to find if this track exists in our library first
             val existingTrack = _tracks.value.find { it.uri == uri }
             if (existingTrack != null) {
                 musicService?.playTrackWithList(existingTrack, _tracks.value)
             } else {
-                // If not found, create a temporary MusicTrack and play it
                 val track = createTrackFromUri(uri)
                 musicService?.playTrackWithList(track, listOf(track))
             }
-            // Show the player sheet automatically
             _showSheet.value = true
         }
     }
@@ -165,16 +161,19 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
         var title = "Unknown"
         var artist = "Unknown"
         
-        getApplication<Application>().contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            val nameIndex = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
-            val artistIndex = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
-            if (cursor.moveToFirst()) {
-                if (nameIndex != -1) title = cursor.getString(nameIndex) ?: "Unknown"
-                if (artistIndex != -1) artist = cursor.getString(artistIndex) ?: "Unknown"
+        try {
+            getApplication<Application>().contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
+                val artistIndex = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
+                if (cursor.moveToFirst()) {
+                    if (nameIndex != -1) title = cursor.getString(nameIndex) ?: "Unknown"
+                    if (artistIndex != -1) artist = cursor.getString(artistIndex) ?: "Unknown"
+                }
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
         
-        // If content resolver failed (e.g. file:// uri), use path
         if (title == "Unknown") {
             title = uri.path?.substringAfterLast("/") ?: "Unknown"
         }
@@ -268,7 +267,7 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                         _exportingTrackId.value = null
                         _exportProgress.value = 1f
                         Logger.d("Extract", "Extracted song: $outputFileName")
-                        loadTracks(force = true) // Refresh list to see new file
+                        loadTracksForce() // Refresh list to see new file
                     }
 
                     override fun onError(
@@ -337,6 +336,10 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleShuffle() { musicService?.toggleShuffle() }
 
     // --- Media Library Methods ---
+    fun loadTracksForce() {
+        loadTracks(force = true)
+    }
+
     private fun loadTracks(force: Boolean = false) {
         if (!force && _tracks.value.isNotEmpty()) return
 
@@ -367,29 +370,33 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
             val audioSelectionArgs = arrayOf(minDurationMs.toString())
             val audioQueryUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 
-            getApplication<Application>().contentResolver.query(
-                audioQueryUri, audioProjection, audioSelection, audioSelectionArgs, null
-            )?.use { cursor ->
-                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-                val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+            try {
+                getApplication<Application>().contentResolver.query(
+                    audioQueryUri, audioProjection, audioSelection, audioSelectionArgs, null
+                )?.use { cursor ->
+                    val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                    val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+                    val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+                    val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
 
-                while (cursor.moveToNext()) {
-                    val fullPath = cursor.getString(dataCol)
-                    val title = cursor.getString(titleCol)
+                    while (cursor.moveToNext()) {
+                        val fullPath = cursor.getString(dataCol)
+                        val title = cursor.getString(titleCol)
 
-                    val isJunkPath = excludedPathSegments.any { fullPath.contains(it, ignoreCase = true) }
-                    val isJunkTitle = excludedTitlePrefixes.any { title.startsWith(it, ignoreCase = true) }
+                        val isJunkPath = excludedPathSegments.any { fullPath.contains(it, ignoreCase = true) }
+                        val isJunkTitle = excludedTitlePrefixes.any { title.startsWith(it, ignoreCase = true) }
 
-                    if (!isJunkPath && !isJunkTitle) {
-                        val id = cursor.getLong(idCol)
-                        val artist = cursor.getString(artistCol)
-                        val folderPath = File(fullPath).parent ?: ""
-                        val uri = ContentUris.withAppendedId(audioQueryUri, id)
-                        mediaList.add(MusicTrack(id, title, artist, uri, folderPath, isVideo = false))
+                        if (!isJunkPath && !isJunkTitle) {
+                            val id = cursor.getLong(idCol)
+                            val artist = cursor.getString(artistCol)
+                            val folderPath = File(fullPath).parent ?: ""
+                            val uri = ContentUris.withAppendedId(audioQueryUri, id)
+                            mediaList.add(MusicTrack(id, title, artist, uri, folderPath, isVideo = false))
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                Logger.e("MusicViewModel", "Error querying audio: ${e.message}")
             }
 
             // Query for video files
@@ -403,27 +410,31 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
             val videoSelectionArgs = arrayOf(minDurationMs.toString())
             val videoQueryUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
 
-            getApplication<Application>().contentResolver.query(
-                videoQueryUri, videoProjection, videoSelection, videoSelectionArgs, null
-            )?.use { cursor ->
-                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
-                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+            try {
+                getApplication<Application>().contentResolver.query(
+                    videoQueryUri, videoProjection, videoSelection, videoSelectionArgs, null
+                )?.use { cursor ->
+                    val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                    val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
+                    val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
 
-                while (cursor.moveToNext()) {
-                    val fullPath = cursor.getString(dataCol)
-                    // Use the unified blocklist for videos as well
-                    val isJunkPath = excludedPathSegments.any { fullPath.contains(it, ignoreCase = true) }
+                    while (cursor.moveToNext()) {
+                        val fullPath = cursor.getString(dataCol)
+                        // Use the unified blocklist for videos as well
+                        val isJunkPath = excludedPathSegments.any { fullPath.contains(it, ignoreCase = true) }
 
-                    if (!isJunkPath) {
-                        val id = cursor.getLong(idCol)
-                        val title = cursor.getString(titleCol)
-                        val artist: String? = null
-                        val folderPath = File(fullPath).parent ?: ""
-                        val uri = ContentUris.withAppendedId(videoQueryUri, id)
-                        mediaList.add(MusicTrack(id, title, artist, uri, folderPath, isVideo = true))
+                        if (!isJunkPath) {
+                            val id = cursor.getLong(idCol)
+                            val title = cursor.getString(titleCol)
+                            val artist: String? = null
+                            val folderPath = File(fullPath).parent ?: ""
+                            val uri = ContentUris.withAppendedId(videoQueryUri, id)
+                            mediaList.add(MusicTrack(id, title, artist, uri, folderPath, isVideo = true))
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                Logger.e("MusicViewModel", "Error querying video: ${e.message}")
             }
 
             mediaList.sortBy { it.title }
