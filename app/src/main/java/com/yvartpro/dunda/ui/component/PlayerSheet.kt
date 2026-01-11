@@ -110,7 +110,7 @@ fun PlayerSheet(
               )
             ) {
               Text(
-                "(to mp3)",
+                "Convert to audio",
                 fontWeight = FontWeight.Bold,
                 color = if (!isAnyExporting) MaterialTheme.colorScheme.primary else Color.Gray
               )
