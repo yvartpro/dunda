@@ -352,7 +352,7 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
 
         viewModelScope.launch(Dispatchers.IO) {
             val mediaList = mutableListOf<MusicTrack>()
-            val minDurationMs = 1000 // 1 second
+            val minDurationMs = 120_000 // 2 minutes
 
             val excludedPathSegments = listOf(
                 "/WhatsApp Voice Notes/", 
@@ -392,7 +392,7 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
 
                         val isJunkPath = excludedPathSegments.any { fullPath.contains(it, ignoreCase = true) }
                         val isJunkTitle = excludedTitlePrefixes.any { title.startsWith(it, ignoreCase = true) }
-                        val isTooShort = duration in 1..minDurationMs
+                        val isTooShort = duration < minDurationMs
 
                         if (!isJunkPath && !isJunkTitle && !isTooShort) {
                             val id = cursor.getLong(idCol)
@@ -428,13 +428,17 @@ class MusicViewModel(app: Application) : AndroidViewModel(app) {
                     val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
                     val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
                     val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+                    val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
 
                     while (cursor.moveToNext()) {
                         val fullPath = cursor.getString(dataCol)
+                        val duration = cursor.getLong(durationCol)
+                        
                         // Use the unified blocklist for videos as well
                         val isJunkPath = excludedPathSegments.any { fullPath.contains(it, ignoreCase = true) }
+                        val isTooShort = duration < minDurationMs
 
-                        if (!isJunkPath) {
+                        if (!isJunkPath && !isTooShort) {
                             val id = cursor.getLong(idCol)
                             val title = cursor.getString(titleCol)
                             val artist: String? = null
